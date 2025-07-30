@@ -1,4 +1,7 @@
 #include "../include/LoopDeLoop.hpp"
+#include "../include/SockItToMe.hpp"
+#include "../include/SocketZilla.hpp"
+#include <cstdlib>
 #include <iostream>
 
 int main(int argc, char **argv) {

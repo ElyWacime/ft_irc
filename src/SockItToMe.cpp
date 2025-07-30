@@ -20,7 +20,7 @@ void SockItToMe::addFd(int fd, void *data) {
 }
 
 void SockItToMe::removeFd(int fd) {
-  epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, nullptr);
+  epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL);
   _fdToData.erase(fd);
 }
 

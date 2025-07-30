@@ -2,19 +2,24 @@
 
 #include "SockItToMe.hpp"
 #include "SocketZilla.hpp"
+#include <cstdlib>
+#include <cstring> // for memset if needed
+#include <fcntl.h> // for fcntl, F_SETFL, O_NONBLOCK
 #include <map>
 #include <string>
+#include <unistd.h> // for close
 
 class Client; // Forward declaration
 
 class LoopDeLoop {
 private:
   SocketZilla _serverSocket;
+  std::string _password;
   SockItToMe _poller;
   std::map<int, Client *> _clients;
 
 public:
-  LoopDeLoop(int port);
+  LoopDeLoop(int port, std::string password);
   ~LoopDeLoop();
 
   void run();
