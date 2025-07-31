@@ -8,8 +8,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-LoopDeLoop::LoopDeLoop(int port, std::string password)
-    : _serverSocket(port), _password(password) {
+LoopDeLoop::LoopDeLoop(SocketZilla &_socket, std::string password,
+                       SockItToMe &epoll_instance)
+    : _serverSocket(_socket), _password(password), _poller(epoll_instance) {
   _poller.addFd(_serverSocket.getFd(), NULL);
 }
 
@@ -47,6 +48,7 @@ void LoopDeLoop::run() {
         } else {
           buf[n] = '\0';
           client->getBuffer().append(buf);
+          std::cout << client->getBuffer();
           // TODO: handle command parsing
         }
       }

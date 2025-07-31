@@ -19,7 +19,8 @@ private:
   std::map<int, Client *> _clients;
 
 public:
-  LoopDeLoop(int port, std::string password);
+  LoopDeLoop(SocketZilla &_socket, std::string password,
+             SockItToMe &epoll_instance);
   ~LoopDeLoop();
 
   void run();
