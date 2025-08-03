@@ -18,10 +18,11 @@ private:
   SockItToMe _poller;
   std::map<int, Client *> _clients;
 
+  std::vector<std::string> extractLines(std::string &buffer);
+
 public:
   LoopDeLoop(SocketZilla &_socket, std::string password,
              SockItToMe &epoll_instance);
   ~LoopDeLoop();
-
   void run();
 };

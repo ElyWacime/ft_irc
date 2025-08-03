@@ -19,6 +19,15 @@ LoopDeLoop::~LoopDeLoop() {
        it != _clients.end(); ++it)
     delete it->second;
 }
+std::vector<std::string> LoopDeLoop::extractLines(std::string &buffer) {
+  std::vector<std::string> lines;
+  size_t pos;
+  while ((pos = buffer.find("\r\n")) != std::string::npos) {
+    lines.push_back(buffer.substr(0, pos));
+    buffer.erase(0, pos + 2);
+  }
+  return lines;
+}
 
 void LoopDeLoop::run() {
   while (true) {
@@ -48,8 +57,11 @@ void LoopDeLoop::run() {
         } else {
           buf[n] = '\0';
           client->getBuffer().append(buf);
-          std::cout << client->getBuffer();
-          // TODO: handle command parsing
+          std::vector<std::string> lines = extractLines(client->getBuffer());
+          for (size_t j = 0; j < lines.size(); ++j) {
+            std::cout << "Received line: " << lines[j] << std::endl;
+            // TODO: handle command parsing
+          }
         }
       }
     }
