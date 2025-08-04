@@ -5,6 +5,7 @@
 #include "../include/LoopDeLoop.hpp"
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -29,6 +30,67 @@ std::vector<std::string> LoopDeLoop::extractLines(std::string &buffer) {
   return lines;
 }
 
+void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
+  std::istringstream iss(line);
+  std::string command;
+  iss >> command;
+
+  if (command == "PASS") {
+    std::string pass;
+    iss >> pass;
+    client->setPassword(pass);
+  } else if (command == "NICK") {
+    std::string nick;
+    iss >> nick;
+    client->setNickname(nick);
+    client->setHasNick(true);
+  } else if (command == "USER") {
+    std::string username, unused, unused2, realname;
+    iss >> username >> unused >> unused2;
+    std::getline(iss, realname);
+    if (!realname.empty() && realname[0] == ':')
+      realname.erase(0, 1);
+    client->setUsername(username);
+    client->setRealname(realname);
+    client->setHasUser(true);
+  } else {
+    std::string response = "421 " + command + " :Unknown command\r\n";
+    send(client->getFd(), response.c_str(), response.size(), 0);
+  }
+
+  // Validate registration
+  if (!client->isRegistered() && client->hasNick() && client->hasUser()) {
+    if (client->getPassword() != _password) {
+      std::string msg = "464 :Password incorrect\r\n";
+      send(client->getFd(), msg.c_str(), msg.length(), 0);
+      _poller.removeFd(client->getFd());
+      close(client->getFd());
+      _clients.erase(client->getFd());
+      delete client;
+      return;
+    }
+
+    client->setRegistered(true);
+    std::string welcome =
+        "001 " + client->getNickname() + " :Welcome to the IRC server!\r\n";
+    send(client->getFd(), welcome.c_str(), welcome.length(), 0);
+  }
+}
+void LoopDeLoop::get_client_data(Client *client) {
+  std::cout << "========== Client Data ==========" << std::endl;
+  std::cout << "FD          : " << client->getFd() << std::endl;
+  std::cout << "Nickname    : " << client->getNickname() << std::endl;
+  std::cout << "Username    : " << client->getUsername() << std::endl;
+  std::cout << "Realname    : " << client->getRealname() << std::endl;
+  std::cout << "Password    : " << client->getPassword() << std::endl;
+  std::cout << "Has Nick    : " << (client->hasNick() ? "true" : "false")
+            << std::endl;
+  std::cout << "Has User    : " << (client->hasUser() ? "true" : "false")
+            << std::endl;
+  std::cout << "Registered  : " << (client->isRegistered() ? "true" : "false")
+            << std::endl;
+  std::cout << "=================================" << std::endl;
+}
 void LoopDeLoop::run() {
   while (true) {
     std::vector<struct epoll_event> events = _poller.wait();
@@ -61,6 +123,9 @@ void LoopDeLoop::run() {
           for (size_t j = 0; j < lines.size(); ++j) {
             std::cout << "Received line: " << lines[j] << std::endl;
             // TODO: handle command parsing
+            //
+            handleCommand(client, lines[i]);
+            get_client_data(client);
           }
         }
       }
