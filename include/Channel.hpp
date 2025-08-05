@@ -6,7 +6,7 @@
 class Channel {
 private:
   std::string _name;
-  std::set<Client *> _clients; // or std::vector if you prefer
+  std::set<Client *> _clients;
 
 public:
   Channel(const std::string &name) : _name(name) {}
@@ -18,8 +18,10 @@ public:
     return _clients.find(client) != _clients.end();
   }
 
-  void broadcast(const std::string &msg, Client *sender = nullptr) {
-    for (Client *c : _clients) {
+  void broadcast(const std::string &msg, Client *sender = NULL) {
+    for (std::set<Client *>::iterator it = _clients.begin();
+         it != _clients.end(); it++) {
+      Client *c = *it;
       if (c != sender) {
         send(c->getFd(), msg.c_str(), msg.size(), 0);
       }

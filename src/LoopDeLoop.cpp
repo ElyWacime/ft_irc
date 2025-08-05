@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 
+#include "../include/Channel.hpp"
 #include "../include/Client.hpp"
 #include "../include/LoopDeLoop.hpp"
 #include <cstring>
@@ -53,6 +54,34 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     client->setUsername(username);
     client->setRealname(realname);
     client->setHasUser(true);
+  } else if (command == "JOIN") {
+    std::string channelName;
+    iss >> channelName;
+
+    if (channelName.empty() || channelName[0] != '#') {
+      std::string err = "476 " + client->getNickname() + " " + channelName +
+                        " :Invalid channel name\r\n";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
+
+    Channel *channel = NULL;
+    std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
+    if (it == _channels.end()) {
+      channel = new Channel(channelName);
+      _channels[channelName] = channel;
+    } else {
+      channel = it->second;
+    }
+
+    if (!channel->hasClient(client)) {
+      channel->addClient(client);
+      client->joinChannel(channelName);
+
+      std::string joinMsg =
+          ":" + client->getNickname() + " JOIN " + channelName + "\r\n";
+      channel->broadcast(joinMsg, NULL);
+    }
   } else {
     std::string response = "421 " + command + " :Unknown command\r\n";
     send(client->getFd(), response.c_str(), response.size(), 0);

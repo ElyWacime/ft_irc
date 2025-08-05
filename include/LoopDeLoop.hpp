@@ -3,14 +3,15 @@
 #include "SockItToMe.hpp"
 #include "SocketZilla.hpp"
 #include <cstdlib>
-#include <cstring> // for memset if needed
-#include <fcntl.h> // for fcntl, F_SETFL, O_NONBLOCK
+#include <cstring>
+#include <fcntl.h>
 #include <iostream>
 #include <map>
 #include <string>
-#include <unistd.h> // for close
+#include <unistd.h>
 
-class Client; // Forward declaration
+class Client;
+class Channel;
 
 class LoopDeLoop {
 private:
@@ -18,6 +19,7 @@ private:
   std::string _password;
   SockItToMe _poller;
   std::map<int, Client *> _clients;
+  std::map<std::string, Channel *> _channels;
 
   std::vector<std::string> extractLines(std::string &buffer);
 

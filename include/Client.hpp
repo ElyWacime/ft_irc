@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <set>
 
 class Client {
 private:
@@ -13,6 +14,7 @@ private:
   bool _hasNick;
   bool _hasUser;
   bool _isRegistered;
+  std::set<std::string> _joinedChannels;
 
 public:
   Client(int fd);
@@ -36,6 +38,10 @@ public:
   bool hasUser() const { return _hasUser; }
   bool isRegistered() const { return _isRegistered; }
   void setRegistered(bool val) { _isRegistered = val; }
+
+  void joinChannel(std::string chanelName) {
+    _joinedChannels.insert(chanelName);
+  }
 
   void clearBuffer() { _buffer.clear(); };
 };
