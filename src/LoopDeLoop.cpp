@@ -91,6 +91,7 @@ void LoopDeLoop::get_client_data(Client *client) {
             << std::endl;
   std::cout << "=================================" << std::endl;
 }
+
 void LoopDeLoop::run() {
   while (true) {
     std::vector<struct epoll_event> events = _poller.wait();
