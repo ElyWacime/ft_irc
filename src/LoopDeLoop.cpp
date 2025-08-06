@@ -55,32 +55,92 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     client->setRealname(realname);
     client->setHasUser(true);
   } else if (command == "JOIN") {
-    std::string channelName;
-    iss >> channelName;
+    std::string channelList;
+    iss >> channelList;
 
-    if (channelName.empty() || channelName[0] != '#') {
-      std::string err = "476 " + client->getNickname() + " " + channelName +
-                        " :Invalid channel name\r\n";
+    if (channelList.empty()) {
+      std::string err =
+          "461 " + client->getNickname() + " JOIN :Not enough parameters\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
     }
 
-    Channel *channel = NULL;
-    std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
-    if (it == _channels.end()) {
-      channel = new Channel(channelName);
-      _channels[channelName] = channel;
-    } else {
-      channel = it->second;
-    }
+    std::stringstream ss(channelList);
+    std::string channelName;
+    while (std::getline(ss, channelName, ',')) {
+      if (channelName.empty() || channelName[0] != '#') {
+        std::string err = "476 " + client->getNickname() + " " + channelName +
+                          " :Invalid channel name\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+        continue;
+      }
 
-    if (!channel->hasClient(client)) {
+      // Check if already in channel
+      if (client->isInChannel(channelName)) {
+        std::string err = "443 " + client->getNickname() + " " + channelName +
+                          " :is already on channel\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+        continue;
+      }
+
+      Channel *channel = NULL;
+      std::map<std::string, Channel *>::iterator it =
+          _channels.find(channelName);
+      if (it == _channels.end()) {
+        channel = new Channel(channelName);
+        _channels[channelName] = channel;
+      } else {
+        channel = it->second;
+      }
+
       channel->addClient(client);
       client->joinChannel(channelName);
 
+      // Broadcast join to all channel members
       std::string joinMsg =
           ":" + client->getNickname() + " JOIN " + channelName + "\r\n";
       channel->broadcast(joinMsg, NULL);
+    }
+  } else if (command == "PRIVMSG") {
+    std::string target;
+    iss >> target;
+
+    std::string message;
+    std::getline(iss, message);
+    if (!message.empty() && message[0] == ':')
+      message.erase(0, 1);
+
+    if (target.empty() || message.empty()) {
+      std::string err = "461 " + client->getNickname() +
+                        " PRIVMSG :Not enough parameters\r\n";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
+
+    // Sending to a channel
+    if (target[0] == '#') {
+      std::map<std::string, Channel *>::iterator it = _channels.find(target);
+      if (it == _channels.end()) {
+        std::string err = "403 " + client->getNickname() + " " + target +
+                          " :No such channel\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+        return;
+      }
+
+      Channel *channel = it->second;
+
+      if (!client->isInChannel(target)) {
+        std::string err = "442 " + client->getNickname() + " " + target +
+                          " :You're not on that channel\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+        return;
+      }
+
+      std::string fullMsg = ":" + client->getNickname() + " PRIVMSG " + target +
+                            " :" + message + "\r\n";
+      channel->broadcast(fullMsg, client);
+    } else {
+      // TODO: implementation of msg user to user
     }
   } else {
     std::string response = "421 " + command + " :Unknown command\r\n";

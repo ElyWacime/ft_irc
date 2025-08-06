@@ -37,6 +37,11 @@ public:
   bool hasNick() const { return _hasNick; }
   bool hasUser() const { return _hasUser; }
   bool isRegistered() const { return _isRegistered; }
+  bool isInChannel(const std::string &channel) const {
+    if (_joinedChannels.find(channel) != _joinedChannels.end())
+      return true;
+    return false;
+  }
   void setRegistered(bool val) { _isRegistered = val; }
 
   void joinChannel(std::string chanelName) {
