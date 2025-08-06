@@ -88,6 +88,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
           _channels.find(channelName);
       if (it == _channels.end()) {
         channel = new Channel(channelName);
+        channel->addOperator(client);
         _channels[channelName] = channel;
       } else {
         channel = it->second;

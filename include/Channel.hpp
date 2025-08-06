@@ -6,7 +6,15 @@
 class Channel {
 private:
   std::string _name;
+  std::string _topic;
+  std::string _key;
+  int _userLimit;
+  bool _inviteOnly;
+  bool _topicRestricted;
+
   std::set<Client *> _clients;
+  std::set<Client *> _operators;
+  std::set<Client *> _invited;
 
 public:
   Channel(const std::string &name) : _name(name) {}
@@ -16,6 +24,11 @@ public:
   void removeClient(Client *client) { _clients.erase(client); }
   bool hasClient(Client *client) const {
     return _clients.find(client) != _clients.end();
+  }
+
+  void addOperator(Client *client) { _operators.insert(client); }
+  bool isOperator(Client *client) {
+    return _operators.find(client) != _operators.end();
   }
 
   void broadcast(const std::string &msg, Client *sender = NULL) {
