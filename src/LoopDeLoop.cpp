@@ -276,6 +276,69 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
                              channelName + " :" + newTopic + "\r\n";
       channel->broadcast(topicMsg, NULL);
     }
+  } else if (command == "MODE") {
+    std::string channelName, modes, param;
+    iss >> channelName >> modes >> param;
+
+    std::map<std::string, Channel *>::iterator chIt =
+        _channels.find(channelName);
+    if (chIt == _channels.end())
+      return;
+
+    Channel *channel = chIt->second;
+
+    if (!channel->isOperator(client)) {
+      std::string err =
+          "482 " + channelName + " :You're not channel operator\r\n";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
+
+    bool adding = true;
+    for (size_t i = 0; i < modes.size(); ++i) {
+      char m = modes[i];
+      if (m == '+')
+        adding = true;
+      else if (m == '-')
+        adding = false;
+      else if (m == 'i')
+        channel->setInviteOnly(adding);
+      else if (m == 't')
+        channel->setTopicRestricted(adding);
+      else if (m == 'k') {
+        if (adding)
+          channel->setKey(param);
+        else
+          channel->setKey("");
+      } else if (m == 'l') {
+        if (adding)
+          channel->setUserLimit(std::atoi(param.c_str()));
+        else
+          channel->setUserLimit(-1);
+      } else if (m == 'o') {
+        // Give/take operator privilege
+        Client *target = NULL;
+        for (std::map<int, Client *>::iterator cit = _clients.begin();
+             cit != _clients.end(); ++cit) {
+          if (cit->second->getNickname() == param) {
+            target = cit->second;
+            break;
+          }
+        }
+        if (target && channel->hasClient(target)) {
+          if (adding)
+            channel->addOperator(target);
+          else
+            channel->removeClient(target); // remove from operators only
+        }
+      } else {
+        // Unknown mode character
+        std::string err = "472 " + client->getNickname() + " ";
+        err += m;
+        err += " :is unknown mode char to me\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+      }
+    }
   } else {
     std::string response = "421 " + command + " :Unknown command\r\n";
     send(client->getFd(), response.c_str(), response.size(), 0);
