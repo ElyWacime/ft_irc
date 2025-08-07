@@ -143,6 +143,113 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     } else {
       // TODO: implementation of msg user to user
     }
+  } else if (command == "KICK") {
+    std::string channelName, targetNick, reason;
+    iss >> channelName >> targetNick;
+    std::getline(iss, reason);
+    if (!reason.empty() && reason[0] == ':')
+      reason.erase(0, 1);
+    if (reason.empty())
+      reason = targetNick;
+
+    std::map<std::string, Channel *>::iterator chIt =
+        _channels.find(channelName);
+    if (chIt == _channels.end())
+      return;
+
+    Channel *channel = chIt->second;
+
+    if (!channel->isOperator(client)) {
+      std::string err =
+          "482 " + channelName + " :You're not channel operator\r\n";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
+
+    // Find target client
+    Client *target = NULL;
+    for (std::map<int, Client *>::iterator cit = _clients.begin();
+         cit != _clients.end(); ++cit) {
+      if (cit->second->getNickname() == targetNick) {
+        target = cit->second;
+        break;
+      }
+    }
+    if (!target || !channel->hasClient(target))
+      return;
+
+    std::string kickMsg = ":" + client->getNickname() + " KICK " + channelName +
+                          " " + targetNick + " :" + reason + "\r\n";
+    channel->broadcast(kickMsg, NULL);
+    channel->removeClient(target);
+    target->partChannel(channelName);
+  } else if (command == "INVITE") {
+    std::string targetNick, channelName;
+    iss >> targetNick >> channelName;
+
+    std::map<std::string, Channel *>::iterator chIt =
+        _channels.find(channelName);
+    if (chIt == _channels.end())
+      return;
+
+    Channel *channel = chIt->second;
+
+    if (!channel->isOperator(client)) {
+      std::string err =
+          "482 " + channelName + " :You're not channel operator\r\n";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
+
+    Client *target = NULL;
+    for (std::map<int, Client *>::iterator cit = _clients.begin();
+         cit != _clients.end(); ++cit) {
+      if (cit->second->getNickname() == targetNick) {
+        target = cit->second;
+        break;
+      }
+    }
+    if (!target)
+      return;
+
+    channel->addInvited(target);
+
+    std::string inviteMsg = ":" + client->getNickname() + " INVITE " +
+                            targetNick + " " + channelName + "\r\n";
+    send(target->getFd(), inviteMsg.c_str(), inviteMsg.size(), 0);
+  } else if (command == "TOPIC") {
+    std::string channelName;
+    iss >> channelName;
+
+    std::map<std::string, Channel *>::iterator chIt =
+        _channels.find(channelName);
+    if (chIt == _channels.end())
+      return;
+
+    Channel *channel = chIt->second;
+
+    std::string newTopic;
+    std::getline(iss, newTopic);
+    if (!newTopic.empty() && newTopic[0] == ':')
+      newTopic.erase(0, 1);
+
+    if (newTopic.empty()) {
+      // Just show current topic
+      std::string topicMsg = "332 " + client->getNickname() + " " +
+                             channelName + " :" + channel->getTopic() + "\r\n";
+      send(client->getFd(), topicMsg.c_str(), topicMsg.size(), 0);
+    } else {
+      if (channel->isTopicRestricted() && !channel->isOperator(client)) {
+        std::string err =
+            "482 " + channelName + " :You're not channel operator\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+        return;
+      }
+      channel->setTopic(newTopic);
+      std::string topicMsg = ":" + client->getNickname() + " TOPIC " +
+                             channelName + " :" + newTopic + "\r\n";
+      channel->broadcast(topicMsg, NULL);
+    }
   } else {
     std::string response = "421 " + command + " :Unknown command\r\n";
     send(client->getFd(), response.c_str(), response.size(), 0);

@@ -19,9 +19,15 @@ private:
 public:
   Channel(const std::string &name) : _name(name) {}
   const std::string &getName() const { return _name; }
+  const std::string &getTopic() const { return _topic; }
+  void setTopic(const std::string &topic) { _topic = topic; }
 
   void addClient(Client *client) { _clients.insert(client); }
-  void removeClient(Client *client) { _clients.erase(client); }
+  void removeClient(Client *client) {
+    _clients.erase(client);
+    _operators.erase(client);
+    _invited.erase(client);
+  }
   bool hasClient(Client *client) const {
     return _clients.find(client) != _clients.end();
   }
@@ -29,6 +35,11 @@ public:
   void addOperator(Client *client) { _operators.insert(client); }
   bool isOperator(Client *client) {
     return _operators.find(client) != _operators.end();
+  }
+
+  void addInvited(Client *client) { _invited.insert(client); }
+  bool isInvated(Client *client) const {
+    return _invited.find(client) != _invited.end();
   }
 
   void broadcast(const std::string &msg, Client *sender = NULL) {
@@ -40,4 +51,18 @@ public:
       }
     }
   }
+
+  void setInviteOnly(bool flag) { _inviteOnly = flag; }
+  bool isInviteOnly() const { return _inviteOnly; }
+
+  void setTopicRestricted(bool flag) { _topicRestricted = flag; }
+  bool isTopicRestricted() const { return _topicRestricted; }
+
+  void setKey(const std::string &key) { _key = key; }
+  const std::string &getKey() const { return _key; }
+
+  void setUserLimit(int userLimit) { _userLimit = userLimit; }
+  int getUserLimit() const { return _userLimit; }
+
+  size_t clientCount() const { return _clients.size(); }
 };

@@ -47,6 +47,7 @@ public:
   void joinChannel(std::string chanelName) {
     _joinedChannels.insert(chanelName);
   }
+  void partChannel(std::string &channel) { _joinedChannels.erase(channel); }
 
   void clearBuffer() { _buffer.clear(); };
 };
