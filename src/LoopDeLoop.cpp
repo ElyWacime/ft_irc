@@ -55,6 +55,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     client->setRealname(realname);
     client->setHasUser(true);
   } else if (command == "JOIN") {
+    if (!client->isRegistered()) {
+      std::string err = ":server 451 <JOIN> :You have not registered";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
     std::string channelList;
     iss >> channelList;
 
@@ -103,6 +108,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       channel->broadcast(joinMsg, NULL);
     }
   } else if (command == "PRIVMSG") {
+    if (!client->isRegistered()) {
+      std::string err = ":server 451 <PRIVMSG> :You have not registered";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
     std::string target;
     iss >> target;
 
@@ -144,6 +154,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       // TODO: implementation of msg user to user
     }
   } else if (command == "KICK") {
+    if (!client->isRegistered()) {
+      std::string err = ":server 451 <KICK> :You have not registered";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
     std::string channelName, targetNick, reason;
     iss >> channelName >> targetNick;
     std::getline(iss, reason);
@@ -184,6 +199,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     channel->removeClient(target);
     target->partChannel(channelName);
   } else if (command == "INVITE") {
+    if (!client->isRegistered()) {
+      std::string err = ":server 451 <INVITE> :You have not registered";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
     std::string targetNick, channelName;
     iss >> targetNick >> channelName;
 
@@ -218,6 +238,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
                             targetNick + " " + channelName + "\r\n";
     send(target->getFd(), inviteMsg.c_str(), inviteMsg.size(), 0);
   } else if (command == "TOPIC") {
+    if (!client->isRegistered()) {
+      std::string err = ":server 451 <TOPIC> :You have not registered";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
     std::string channelName;
     iss >> channelName;
 
@@ -245,6 +270,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         send(client->getFd(), err.c_str(), err.size(), 0);
         return;
       }
+      std::cout << "###########" << !channel->isOperator(client) << std::endl;
       channel->setTopic(newTopic);
       std::string topicMsg = ":" + client->getNickname() + " TOPIC " +
                              channelName + " :" + newTopic + "\r\n";
@@ -319,11 +345,10 @@ void LoopDeLoop::run() {
           client->getBuffer().append(buf);
           std::vector<std::string> lines = extractLines(client->getBuffer());
           for (size_t j = 0; j < lines.size(); ++j) {
-            std::cout << "Received line: " << lines[j] << std::endl;
             // TODO: handle command parsing
             //
             handleCommand(client, lines[i]);
-            get_client_data(client);
+            // get_client_data(client);
           }
         }
       }
