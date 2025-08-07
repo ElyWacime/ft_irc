@@ -329,7 +329,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
           if (adding)
             channel->addOperator(target);
           else
-            channel->removeClient(target); // remove from operators only
+            channel->removeOperator(target); // remove from operators only
         }
       } else {
         // Unknown mode character

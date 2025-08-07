@@ -33,6 +33,7 @@ public:
   }
 
   void addOperator(Client *client) { _operators.insert(client); }
+  void removeOperator(Client *client) { _operators.erase(client); }
   bool isOperator(Client *client) {
     return _operators.find(client) != _operators.end();
   }
