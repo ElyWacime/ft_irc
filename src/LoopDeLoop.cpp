@@ -43,6 +43,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
   } else if (command == "NICK") {
     std::string nick;
     iss >> nick;
+    if (nickExist(nick)) {
+      std::string err = "nickname already exists";
+      send(client->getFd(), err.c_str(), err.size(), 0);
+      return;
+    }
     client->setNickname(nick);
     client->setHasNick(true);
   } else if (command == "USER") {
@@ -97,6 +102,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         _channels[channelName] = channel;
       } else {
         channel = it->second;
+      }
+
+      if (channel->isInviteOnly()) {
+        std::string err = "404: " + client->getNickname() + " " + channelName +
+                          " :channel is invite only\r\n";
       }
 
       channel->addClient(client);
@@ -329,7 +339,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
           if (adding)
             channel->addOperator(target);
           else
-            channel->removeOperator(target); // remove from operators only
+            channel->removeOperator(target);
         }
       } else {
         // Unknown mode character
@@ -408,8 +418,6 @@ void LoopDeLoop::run() {
           client->getBuffer().append(buf);
           std::vector<std::string> lines = extractLines(client->getBuffer());
           for (size_t j = 0; j < lines.size(); ++j) {
-            // TODO: handle command parsing
-            //
             handleCommand(client, lines[i]);
             // get_client_data(client);
           }

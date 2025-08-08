@@ -31,6 +31,22 @@ public:
   bool hasClient(Client *client) const {
     return _clients.find(client) != _clients.end();
   }
+  bool nickExist(const std::string &nick) const {
+    for (std::set<Client *>::const_iterator nit = _clients.begin();
+         nit != _clients.end(); nit++) {
+      if ((*nit)->getNickname() == nick)
+        return true;
+    }
+    return false;
+  }
+  bool userExist(const std::string &nick) const {
+    for (std::set<Client *>::const_iterator uit = _clients.begin();
+         uit != _clients.end(); uit++) {
+      if ((*uit)->getNickname() == nick)
+        return true;
+    }
+    return false;
+  }
 
   void addOperator(Client *client) { _operators.insert(client); }
   void removeOperator(Client *client) { _operators.erase(client); }

@@ -30,4 +30,13 @@ public:
   void handleCommand(Client *client, const std::string &line);
   void run();
   void get_client_data(Client *client);
+  bool nickExist(const std::string &nick) const {
+    for (std::map<int, Client *>::const_iterator nit = _clients.begin();
+         nit != _clients.end(); ++nit) {
+      Client *client = nit->second;
+      if (client->getNickname() == nick)
+        return true;
+    }
+    return false;
+  }
 };

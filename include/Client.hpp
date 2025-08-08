@@ -23,6 +23,7 @@ public:
   int getFd() const;
   const std::string &getNickname() const;
   void setNickname(const std::string &nick);
+
   const std::string &getUsername() const;
   void setUsername(const std::string &user);
   std::string &getBuffer();
