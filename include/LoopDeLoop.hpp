@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Channel.hpp"
+#include "Client.hpp"
 #include "SockItToMe.hpp"
 #include "SocketZilla.hpp"
 #include <cstdlib>
@@ -10,8 +12,8 @@
 #include <string>
 #include <unistd.h>
 
-class Client;
-class Channel;
+// class Client;
+// class Channel;
 
 class LoopDeLoop {
 private:

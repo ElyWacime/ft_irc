@@ -1,8 +1,6 @@
 #include <string>
 #include <vector>
 
-#include "../include/Channel.hpp"
-#include "../include/Client.hpp"
 #include "../include/LoopDeLoop.hpp"
 #include <cstring>
 #include <iostream>
@@ -104,9 +102,12 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         channel = it->second;
       }
 
-      if (channel->isInviteOnly()) {
+      // check if channel is restricted to inited only
+      if (channel->isInviteOnly() && (!channel->isInvated(client))) {
         std::string err = "404: " + client->getNickname() + " " + channelName +
                           " :channel is invite only\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+        continue;
       }
 
       channel->addClient(client);
