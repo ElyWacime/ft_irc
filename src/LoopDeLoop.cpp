@@ -150,9 +150,10 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
     }
-
+    
     // Sending to a channel
-    if (target[0] == '#') {
+    if (target[0] == '#') 
+    {
       std::map<std::string, Channel *>::iterator it = _channels.find(target);
       if (it == _channels.end()) {
         std::string err = "403 " + client->getNickname() + " " + target +
@@ -173,7 +174,28 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       std::string fullMsg = ":" + client->getNickname() + " PRIVMSG " + target +
                             " :" + message + "\r\n";
       channel->broadcast(fullMsg, client);
-    } else {
+    } 
+    else 
+    {
+      std::string fullMsg = ":" + client->getNickname() + " PRIVMSG " + target +
+                            " :" + message + "\r\n";
+      std::map<int, Client *>::iterator it = _clients.begin();
+      for(it = _clients.begin(); it != _clients.end(); ++it)
+      {
+        if (it->second->getNickname() == target) 
+        {
+          // Find the target client in this channel
+          // Implementation needed for user-to-user messaging
+          send(it->first, fullMsg.c_str(), fullMsg.size(), 0);
+          break;
+        }
+      }
+      if(it == _clients.end())
+      {
+        std::string errstring = "401 " + client->getNickname() + " " + target + " :No such user\r\n";
+        send(client->getFd(), errstring.c_str(), errstring.size(), 0);
+      }
+      // TODO: implementation of msg user to user - need to find target client and send message
       // TODO: implementation of msg user to user
     }
   } else if (command == "KICK") {
