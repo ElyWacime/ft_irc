@@ -110,6 +110,18 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         continue;
       }
 
+      // chaeck if a channel has pass key
+      if (channel->hasKey()) {
+        std::string key;
+        iss >> key;
+        if (key.empty() || key != channel->getKey()) {
+          std::string err = "475 " + client->getNickname() +
+                            " cant't not join " + channelName + " (+k)";
+          send(client->getFd(), err.c_str(), err.size(), 0);
+        }
+        continue;
+      }
+
       channel->addClient(client);
       client->joinChannel(channelName);
 
@@ -317,9 +329,10 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       else if (m == 't')
         channel->setTopicRestricted(adding);
       else if (m == 'k') {
-        if (adding)
+        if (adding) {
+          channel->setHasKey(adding);
           channel->setKey(param);
-        else
+        } else
           channel->setKey("");
       } else if (m == 'l') {
         if (adding)

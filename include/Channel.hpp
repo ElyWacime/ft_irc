@@ -11,13 +11,16 @@ private:
   int _userLimit;
   bool _inviteOnly;
   bool _topicRestricted;
+  bool _hasKey;
 
   std::set<Client *> _clients;
   std::set<Client *> _operators;
   std::set<Client *> _invited;
 
 public:
-  Channel(const std::string &name) : _name(name) {}
+  Channel(const std::string &name)
+      : _name(name), _userLimit(-1), _inviteOnly(0), _topicRestricted(0),
+        _hasKey(0) {}
   const std::string &getName() const { return _name; }
   const std::string &getTopic() const { return _topic; }
   void setTopic(const std::string &topic) { _topic = topic; }
@@ -77,6 +80,8 @@ public:
 
   void setKey(const std::string &key) { _key = key; }
   const std::string &getKey() const { return _key; }
+  void setHasKey(bool flag) { _hasKey = flag; }
+  bool hasKey() const { return _hasKey; }
 
   void setUserLimit(int userLimit) { _userLimit = userLimit; }
   int getUserLimit() const { return _userLimit; }
