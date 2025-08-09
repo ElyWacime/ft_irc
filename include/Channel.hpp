@@ -34,6 +34,8 @@ public:
   bool hasClient(Client *client) const {
     return _clients.find(client) != _clients.end();
   }
+  const std::set<Client *> &getClients() const { return _clients; }
+  
   bool nickExist(const std::string &nick) const {
     for (std::set<Client *>::const_iterator nit = _clients.begin();
          nit != _clients.end(); nit++) {

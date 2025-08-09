@@ -358,7 +358,28 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
           channel->setKey("");
       } else if (m == 'l') {
         if (adding)
-          channel->setUserLimit(std::atoi(param.c_str()));
+        {
+          // try
+          {
+            std::cout << "param: |" << param << "|" << std::endl;
+            int n = std::stoi(param);
+            std::cout << "n === : |" << n << "|" << std::endl;
+            if (n < (int)channel->getClients().size())
+            {
+                std::string errstring = "421 " + client->getNickname() + " :Invalid user limit\r\n";
+                send(client->getFd(), errstring.c_str(), errstring.size(), 0);
+                continue;
+            }
+              // throw std::invalid_argument("Negative user limit");
+            channel->setUserLimit(n);
+          }
+          // catch(const std::exception& e)
+          {
+              std::string errstring = "401 " + client->getNickname() + ":Invalid Number\r\n";
+              send(client->getFd(), errstring.c_str(), errstring.size(), 0);
+              continue;
+          }
+        }
         else
           channel->setUserLimit(-1);
       } else if (m == 'o') {
