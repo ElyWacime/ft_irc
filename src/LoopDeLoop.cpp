@@ -386,21 +386,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     send(client->getFd(), welcome.c_str(), welcome.length(), 0);
   }
 }
-void LoopDeLoop::get_client_data(Client *client) {
-  std::cout << "========== Client Data ==========" << std::endl;
-  std::cout << "FD          : " << client->getFd() << std::endl;
-  std::cout << "Nickname    : " << client->getNickname() << std::endl;
-  std::cout << "Username    : " << client->getUsername() << std::endl;
-  std::cout << "Realname    : " << client->getRealname() << std::endl;
-  std::cout << "Password    : " << client->getPassword() << std::endl;
-  std::cout << "Has Nick    : " << (client->hasNick() ? "true" : "false")
-            << std::endl;
-  std::cout << "Has User    : " << (client->hasUser() ? "true" : "false")
-            << std::endl;
-  std::cout << "Registered  : " << (client->isRegistered() ? "true" : "false")
-            << std::endl;
-  std::cout << "=================================" << std::endl;
-}
 
 void LoopDeLoop::run() {
   while (true) {
@@ -432,8 +417,8 @@ void LoopDeLoop::run() {
           client->getBuffer().append(buf);
           std::vector<std::string> lines = extractLines(client->getBuffer());
           for (size_t j = 0; j < lines.size(); ++j) {
+            std::cout << lines[i] << std::endl;
             handleCommand(client, lines[i]);
-            // get_client_data(client);
           }
         }
       }
