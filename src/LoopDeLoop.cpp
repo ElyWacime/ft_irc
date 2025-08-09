@@ -118,8 +118,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
           std::string err = "475 " + client->getNickname() +
                             " cant't not join " + channelName + " (+k)";
           send(client->getFd(), err.c_str(), err.size(), 0);
+          continue;
         }
-        continue;
       }
 
       channel->addClient(client);
@@ -330,6 +330,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         channel->setTopicRestricted(adding);
       else if (m == 'k') {
         if (adding) {
+          if (param.empty())
+            continue;
           channel->setHasKey(adding);
           channel->setKey(param);
         } else
@@ -417,7 +419,6 @@ void LoopDeLoop::run() {
           client->getBuffer().append(buf);
           std::vector<std::string> lines = extractLines(client->getBuffer());
           for (size_t j = 0; j < lines.size(); ++j) {
-            std::cout << lines[i] << std::endl;
             handleCommand(client, lines[i]);
           }
         }

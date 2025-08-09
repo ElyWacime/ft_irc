@@ -34,8 +34,22 @@ def main():
 
     data2 = s2.recv(4096)
     print(data2.decode(errors='ignore'))
+    send(s2, "JOIN #rune")
+    data2 = s2.recv(4096)
+    print(data2.decode(errors='ignore'))
+    
+    send(s2, "MODE #rune +k password")
+    data2 = s2.recv(4096)
+    print(data2.decode(errors='ignore'))
 
+    s3 = connect_to_server()
+    auth(s3, "ggg")
+    send(s3, "JOIN #rune")
+    data2 = s2.recv(4096)
+    print(data2.decode(errors='ignore'))
+    
     s1.close()
+    s2.close()
 
 if __name__ == "__main__":
     main()
