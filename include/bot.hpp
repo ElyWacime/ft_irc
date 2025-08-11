@@ -17,18 +17,18 @@ class bot
 {
     private:
 
-        std::string joke[10] = {
+        std::string joke[] = {
         "Why did the chicken cross the road? , To get to the other side",
-        "What do you call a fish with no eyes? , A fsh",
-        }
+        "What do you call a fish with no eyes? , A fsh"
+        };
 
-        std::string quote[10] = {
+        std::string quote[] = {
         "The only way to do great work is to love what you do. - Steve Jobs",
         "The best way to predict the future is to invent it. - Alan Kay",
         "The only way to do great work is to love what you do. - Steve Jobs",
-        }
+        };
 
-        std::string ascii = "0 nul    1 soh    2 stx    3 etx    4 eot    5 enq    6 ack    7 bel
+        std::string ascii = R"(0 nul    1 soh    2 stx    3 etx    4 eot    5 enq    6 ack    7 bel
             8 bs     9 ht    10 nl    11 vt    12 np    13 cr    14 so    15 si
             16 dle   17 dc1   18 dc2   19 dc3   20 dc4   21 nak   22 syn   23 etb
             24 can   25 em    26 sub   27 esc   28 fs    29 gs    30 rs    31 us
@@ -43,12 +43,12 @@ class bot
             96  `    97  a    98  b    99  c   100  d   101  e   102  f   103  g
             104  h   105  i   106  j   107  k   108  l   109  m   110  n   111  o
             112  p   113  q   114  r   115  s   116  t   117  u   118  v   119  w
-            120  x   121  y   122  z   123  {   124  |   125  }   126  ~   127 del"
+            120  x   121  y   122  z   123  {   124  |   125  }   126  ~   127 del)";
 
         std::string coin[2] = {
         "Heads",
         "Tails",
-        }
+        };
 
         std::string dice[6] = {
         "1",
@@ -57,20 +57,22 @@ class bot
         "4",
         "5",
         "6",
-        }
+        }; 
 
 
     public:
+        bot()
+        {
+            std::srand(time(NULL));
+        }
 
         std::string get_random_joke()
         {
-            std::srand(time(NULL));
             return joke[rand() % 10];
         }
 
         std::string get_random_quote()
         {
-            std::srand(time(NULL));
             return quote[rand() % 10];
         }
 
@@ -81,13 +83,11 @@ class bot
 
         std::string get_random_coin()
         {
-            std::srand(time(NULL));
             return coin[rand() % 2];
         }
 
         std::string get_random_dice()
         {
-            std::srand(time(NULL));
             return dice[rand() % 6];
         }
 
