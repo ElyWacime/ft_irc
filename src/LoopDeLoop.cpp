@@ -33,10 +33,10 @@ std::vector<std::string> LoopDeLoop::extractLines(std::string &buffer) {
 void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
   std::istringstream iss(line);
 
-  
+  bot bot;
   std::string command;
   iss >> command;
-
+  bot.bot_handle(client, command);
   if (command == "PASS") {
     std::string pass;
     iss >> pass;

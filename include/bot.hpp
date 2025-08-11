@@ -64,36 +64,36 @@ class bot
 
         std::string get_random_joke()
         {
-        std::srand(time(NULL));
-        return joke[rand() % 10];
+            std::srand(time(NULL));
+            return joke[rand() % 10];
         }
 
         std::string get_random_quote()
         {
-        std::srand(time(NULL));
-        return quote[rand() % 10];
+            std::srand(time(NULL));
+            return quote[rand() % 10];
         }
 
         std::string get_random_ascii()
         {
-        return ascii;
+            return ascii;
         }
 
         std::string get_random_coin()
         {
-        std::srand(time(NULL));
-        return coin[rand() % 2];
+            std::srand(time(NULL));
+            return coin[rand() % 2];
         }
 
         std::string get_random_dice()
         {
-        std::srand(time(NULL));
-        return dice[rand() % 6];
+            std::srand(time(NULL));
+            return dice[rand() % 6];
         }
 
         void send_message(Client *client, const std::string &message)
         {
-        send(client->getFd(), message.c_str(), message.size(), 0);
+            send(client->getFd(), message.c_str(), message.size(), 0);
         }
     
         void bot_handle(Client *client, const std::string &line)
@@ -105,26 +105,28 @@ class bot
                 return;
             if (command == "/help")
             {
-            std::string help = "Available commands: /joke, /quote, /ascii, /coin, /dice";
-            send(client->getFd(), help.c_str(), help.size(), 0);
-            return;
+                std::string help = "Available commands: /joke, /quote, /ascii, /coin, /dice";
+                send(client->getFd(), help.c_str(), help.size(), 0);
+                return;
             }
             else if (command == "/joke")
             {
-            std::string joke = get_random_joke();
-            send_message(client, joke);
-            return;
+                std::string joke = get_random_joke();
+                send_message(client, joke);
+                return;
             }
             else if (command == "/quote")
             {
-            std::string quote = get_random_quote();
+                std::string quote = get_random_quote();
+                send_message(client, quote);
+                return;
             }
 
             else if (command == "/ascii")
             {
-            std::string ascii = get_random_ascii();
-            send_message(client, ascii);
-            return;
+                std::string ascii = get_random_ascii();
+                send_message(client, ascii);
+                return;
             }
             else if (command == "/coin")
             {
@@ -144,6 +146,5 @@ class bot
                 send_message(client, err);
                 return;
             }
-
         }
 }
