@@ -1,6 +1,7 @@
 #include "../include/SocketZilla.hpp"
 #include <cstring>
 #include <fcntl.h>
+#include <iostream>
 #include <netinet/in.h>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -20,8 +21,10 @@ SocketZilla::SocketZilla(int port)
   _addr.sin_addr.s_addr = INADDR_ANY;
   _addr.sin_port = htons(port);
 
-  if (bind(_sockfd, (struct sockaddr *)&_addr, sizeof(_addr)) < 0)
+  if (bind(_sockfd, (struct sockaddr *)&_addr, sizeof(_addr)) < 0) {
+    std::cerr << strerror(errno) << std::endl;
     throw std::runtime_error("Bind failed");
+  }
 
   fcntl(_sockfd, F_SETFL, O_NONBLOCK);
 

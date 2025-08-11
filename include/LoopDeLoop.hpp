@@ -1,15 +1,19 @@
 #pragma once
 
+#include "Channel.hpp"
+#include "Client.hpp"
 #include "SockItToMe.hpp"
 #include "SocketZilla.hpp"
 #include <cstdlib>
-#include <cstring> // for memset if needed
-#include <fcntl.h> // for fcntl, F_SETFL, O_NONBLOCK
+#include <cstring>
+#include <fcntl.h>
+#include <iostream>
 #include <map>
 #include <string>
-#include <unistd.h> // for close
+#include <unistd.h>
 
-class Client; // Forward declaration
+// class Client;
+// class Channel;
 
 class LoopDeLoop {
 private:
@@ -17,10 +21,24 @@ private:
   std::string _password;
   SockItToMe _poller;
   std::map<int, Client *> _clients;
+  std::map<std::string, Channel *> _channels;
+
+  std::vector<std::string> extractLines(std::string &buffer);
 
 public:
-  LoopDeLoop(int port, std::string password);
+  LoopDeLoop(SocketZilla &_socket, std::string password,
+             SockItToMe &epoll_instance);
   ~LoopDeLoop();
-
+  void handleCommand(Client *client, const std::string &line);
   void run();
+  void get_client_data(Client *client);
+  bool nickExist(const std::string &nick) const {
+    for (std::map<int, Client *>::const_iterator nit = _clients.begin();
+         nit != _clients.end(); ++nit) {
+      Client *client = nit->second;
+      if (client->getNickname() == nick)
+        return true;
+    }
+    return false;
+  }
 };

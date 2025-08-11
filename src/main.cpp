@@ -14,8 +14,10 @@ int main(int argc, char **argv) {
   std::string password = argv[2];
 
   try {
-    LoopDeLoop server(port, password);
-    server.run(); // Start event loop
+    SocketZilla _socket(port);
+    SockItToMe epoll_instance;
+    LoopDeLoop server(_socket, password, epoll_instance);
+    server.run();
   } catch (const std::exception &e) {
     std::cerr << "Fatal error: " << e.what() << std::endl;
     return 1;
