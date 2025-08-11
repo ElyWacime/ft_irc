@@ -2,7 +2,8 @@
 
 #include <iostream>
 
-class Client {
+class Client
+{
 private:
   int _fd;
   std::string _nickname;
