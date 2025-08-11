@@ -1,7 +1,8 @@
 #pragma once
 
 #include <map>
-#include <sys/epoll.h>
+#include <sys/event.h>   // for kqueue
+#include <sys/time.h>
 #include <vector>
 
 class SockItToMe {

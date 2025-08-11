@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+
 LoopDeLoop::LoopDeLoop(SocketZilla &_socket, std::string password,
                        SockItToMe &epoll_instance)
     : _serverSocket(_socket), _password(password), _poller(epoll_instance) {
@@ -31,6 +32,8 @@ std::vector<std::string> LoopDeLoop::extractLines(std::string &buffer) {
 
 void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
   std::istringstream iss(line);
+
+  
   std::string command;
   iss >> command;
 

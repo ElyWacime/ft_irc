@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Client.hpp"
 #include <set>
 #include <sys/socket.h>
