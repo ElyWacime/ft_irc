@@ -213,8 +213,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         break;
       }
     }
-    if (!target || !channel->hasClient(target))
+    if (!target || !channel->hasClient(target)) {
+      std::string msg = "client doesn't exist in : " + channel->getName();
+      send(client->getFd(), msg.c_str(), msg.size(), 0);
       return;
+    }
 
     std::string kickMsg = ":" + client->getNickname() + " KICK " + channelName +
                           " " + targetNick + " :" + reason + "\r\n";
