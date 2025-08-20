@@ -2,11 +2,13 @@
 #include <vector>
 
 #include "../include/LoopDeLoop.hpp"
+#include "../include/bot.hpp"
 #include <cstring>
 #include <iostream>
 #include <sstream>
 #include <sys/socket.h>
 #include <unistd.h>
+
 
 
 LoopDeLoop::LoopDeLoop(SocketZilla &_socket, std::string password,
@@ -30,14 +32,19 @@ std::vector<std::string> LoopDeLoop::extractLines(std::string &buffer) {
   return lines;
 }
 
-void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
+void LoopDeLoop::handleCommand(Client *client, const std::string &line)
+{
   std::istringstream iss(line);
 
   bot bot;
   std::string command;
   iss >> command;
-  bot.bot_handle(client, command);
-  if (command == "PASS") {
+  if (!command.empty() && command[0] == '/')
+  {
+      bot.bot_handle(client, line);
+      return;
+  }
+  else if (command == "PASS") {
     std::string pass;
     iss >> pass;
     client->setPassword(pass);
@@ -224,7 +231,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     channel->broadcast(kickMsg, NULL);
     channel->removeClient(target);
     target->partChannel(channelName);
-  } else if (command == "INVITE") {
+  }
+  else if (command == "INVITE") {
     if (!client->isRegistered()) {
       std::string err = ":server 451 <INVITE> :You have not registered";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -360,7 +368,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
           else
             channel->removeOperator(target);
         }
-      } else {
+      } 
+      else {
         // Unknown mode character
         std::string err = "472 " + client->getNickname() + " ";
         err += m;
@@ -368,7 +377,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         send(client->getFd(), err.c_str(), err.size(), 0);
       }
     }
-  } else {
+  }
+  else {
     std::string response = "421 " + command + " :Unknown command\r\n";
     send(client->getFd(), response.c_str(), response.size(), 0);
   }
