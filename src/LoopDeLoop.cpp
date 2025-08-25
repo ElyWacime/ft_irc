@@ -98,6 +98,115 @@ void LoopDeLoop::handleFileTransferCommand(client *client, const std::vector<std
       client->sendMessage("NOTICE :No pending file transfer sender " + sender + "\r\n");
     }
   }
+  else if (sub == "SENDDATA" && toks.size() >= 4)
+  {
+      std::string target = toks[2];
+      std::string filename = toks[3];
+      
+      Client* targetClient = findClientByNick(target);
+      if (!targetClient) {
+          std::string err = "401 " + target + " :No such nick/channel\r\n";
+          send(client->getFd(), err.c_str(), err.size(), 0);
+          return;
+      }
+      
+      std::string key = generateTransferKey(client->getNickname(), target);
+      
+      if (transfer_accepted_.count(key) > 0 && transfer_accepted_[key] && 
+          transfer_filenames_[key] == filename) {
+          
+          // Read source file in chunks
+          std::ifstream source_file(filename.c_str(), std::ios::binary);
+          if (!source_file) {
+              client->sendMessage("NOTICE :Cannot open file: " + filename + "\r\n");
+              return;
+          }
+          
+          // Generate server filename
+          std::string server_filename = generateServerFilename(client->getNickname(), target, filename);
+          std::ofstream dest_file(server_filename.c_str(), std::ios::binary);
+          
+          if (!dest_file) {
+              client->sendMessage("NOTICE :Cannot create server file\r\n");
+              source_file.close();
+              return;
+          }
+          
+          // Read and write in chunks internally (no messages to user)
+          const size_t CHUNK_SIZE = 8192; // 8KB chunks
+          char buffer[CHUNK_SIZE];
+          size_t total_bytes = 0;
+          
+          while (source_file.read(buffer, CHUNK_SIZE) || source_file.gcount() > 0) {
+              size_t bytes_read = source_file.gcount();
+              dest_file.write(buffer, bytes_read);
+              total_bytes += bytes_read;
+              
+              // Chunking happens internally, no messages sent to user
+          }
+          
+          source_file.close();
+          dest_file.close();
+          
+          // Notify recipient that file is ready
+          sendToNick(target, ":" + client->getNickname() + " XFER READY " + server_filename + "\r\n");
+          client->sendMessage("NOTICE :File transfer completed (" + 
+                            std::to_string(total_bytes) + " bytes)\r\n");
+          
+          // Cleanup
+          cleanupTransfer(key);
+      }
+  }
+  else if (sub == "DOWNLOAD" && toks.size() >= 3)
+  {
+      std::string server_filename = toks[2];
+      
+      std::ifstream source_file(server_filename.c_str(), std::ios::binary);
+      
+      if (source_file) {
+          // Extract original filename from server filename
+          size_t underscore_pos = server_filename.find('_');
+          if (underscore_pos == std::string::npos) {
+              client->sendMessage("NOTICE :Invalid server filename\r\n");
+              return;
+          }
+          
+          std::string original_filename = server_filename.substr(underscore_pos + 1);
+          
+          // Create the file for receiver
+          std::ofstream dest_file(original_filename.c_str(), std::ios::binary);
+          
+          if (!dest_file) {
+              client->sendMessage("NOTICE :Cannot create file: " + original_filename + "\r\n");
+              source_file.close();
+              return;
+          }
+          
+          // Read and write in chunks internally
+          const size_t CHUNK_SIZE = 8192;
+          char buffer[CHUNK_SIZE];
+          size_t total_bytes = 0;
+          
+          while (source_file.read(buffer, CHUNK_SIZE) || source_file.gcount() > 0) {
+              size_t bytes_read = source_file.gcount();
+              dest_file.write(buffer, bytes_read);
+              total_bytes += bytes_read;
+              
+              // Chunking happens internally, no messages sent to user
+          }
+          
+          source_file.close();
+          dest_file.close();
+          
+          // Delete the temporary server file
+          std::remove(server_filename.c_str());
+          
+          client->sendMessage("NOTICE :File downloaded as: " + original_filename + 
+                            " (" + std::to_string(total_bytes) + " bytes)\r\n");
+      } else {
+          client->sendMessage("NOTICE :File not found: " + server_filename + "\r\n");
+      }
+
 
 }
 
@@ -133,10 +242,28 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
   bot bot;
   std::string command;
   iss >> command;
+
   if (!command.empty() && command[0] == '/')
   {
       bot.bot_handle(client, line);
       return;
+  }
+
+  // Offer: XFER OFFER target myfile.txt
+
+  //Accept: XFER ACCEPT alice myfile.txt
+//  ayoub the filetransfer
+  else if (command == "XFER")
+  {
+        std::vector<std::string> tokens;; 
+        
+        std::string token;
+        while (iss >> token) {
+            tokens.push_back(token);
+        }
+        if ( token.size() >= 3)
+          handleFileTransferCommand(client, tokens);
+        return;
   }
   else if (command == "PASS") {
     std::string pass;
