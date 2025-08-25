@@ -25,6 +25,13 @@ private:
 
   std::vector<std::string> extractLines(std::string &buffer);
 
+  //ayoub
+  
+  std::map<std::string, std::string> transfer_buffers_; // k -> file data
+  std::map<std::string, std::string> transfer_filenames_; // k -> original filename
+  std::map<std::string, bool> transfer_accepted_; // k -> acceptance status
+    
+
 public:
   LoopDeLoop(SocketZilla &_socket, std::string password,
              SockItToMe &epoll_instance);
@@ -32,6 +39,7 @@ public:
   void handleCommand(Client *client, const std::string &line);
   void run();
   void get_client_data(Client *client);
+
   bool nickExist(const std::string &nick) const {
     for (std::map<int, Client *>::const_iterator nit = _clients.begin();
          nit != _clients.end(); ++nit) {
@@ -41,4 +49,12 @@ public:
     }
     return false;
   }
+
+  //ayoub
+    std::string generateTransferKey(const std::string &from, const std::string &to);
+    std::string generateServerFilename(const std::string &from, const std::string &to, const std::string &original_filename);
+    void cleanupTransfer(const std::string &key);
+    void handleFileTransferCommand(Client *client, const std::vector<std::string> &toks);
+    void sendToNick(const std::string &nickname, const std::string &message);
+    Client* findClientByNick(const std::string &nickname);
 };

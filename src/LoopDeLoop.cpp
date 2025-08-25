@@ -10,6 +10,98 @@
 #include <unistd.h>
 
 
+std::string LoopDeLoop::generateTransferKey(const std::string &from, const std::string &to) {
+    return from + "->" + to;
+}
+
+std::string LoopDeLoop::generateServerFilename(const std::string &from, const std::string &to, const std::string &original_filename) {
+    return from + "to" + to + "_" + original_filename;
+}
+
+Client* LoopDeLoop::findClientByNick(const std::string &nickname) {
+    for (std::map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+        if (it->second->getNickname() == nickname && it->second->isRegistered()) {
+            return it->second;
+        }
+    }
+    return NULL;
+}
+
+void LoopDeLoop::sendToNick(const std::string &nickname, const std::string  &message)
+{
+  client *target = findClientByNick(nickname);
+  target->sendMessage(message);
+}
+
+void LoopDeLoop::cleanupTransfer(const std::string &key)
+{
+  transfer_buffers_.erase(key);
+  transfer_filenames_.erase(key);
+  transfer_accepted_.erase(key);
+}
+
+void LoopDeLoop::handleFileTransferCommand(client *client, const std::vector<std::string> &token)
+{
+  if (!client->isRegistered())
+  {
+    std::string err = ":server 451 <JOIN> :You have not registered"
+    client->sendMessage(err);
+    return;
+  }
+  std::string cmd = token[0];
+  if (sub == "OFFER" && toks.size() >= 3)
+  {
+    std::string target = token[1];
+    std::string filename = token[2];
+
+    
+    Client* targetClient = findClientByNick(target);
+    if (!targetClient) {
+        std::string err = "401 " + target + " :No such nick/channel\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+        return;
+    }
+    
+    std::string key = generateTransferKey(client->getNickname(), target);
+    cleanupTransfer(key);
+    
+    transfer_filenames_[key] = filename;
+    transfer_accepted_[key] = false;
+    transfer_buffers_[key] = "";
+    
+    sendToNick(target, ":" + client->getNickname() + " XFER REQUEST " + filename + "\r\n");
+    client->sendMessage("File offer sent to " + target + "\r\n");
+  }
+  else if (sub == "ACCEPT" && toks.size() >= 3)
+  {
+    std::string sender = toks[1];
+    std::string filename = toks[2];
+    Client* snederClient = findClientByNick(from);
+
+    if (!senderClient)
+    {
+      std::string err = "401 " + sender + " :No such client\r\n";
+      client->sendMessage(err);
+      return;
+    }
+    
+    std::string key = generateTransferKey(sender, client->getNickname());
+    
+    if (transfer_filenames_.count(key) > 0 && transfer_filenames_[key] == filename)
+    {
+      transfer_accepted_[key] = true;
+      sendToNick(sender, ":" + client->getNickname() + " XFER ACCEPTED " + filename + "\r\n");
+      client->sendMessage("NOTICE :Ready to receive file sender " + sender + "\r\n");
+    }
+    else
+    {
+      client->sendMessage("NOTICE :No pending file transfer sender " + sender + "\r\n");
+    }
+  }
+
+}
+
+
 
 LoopDeLoop::LoopDeLoop(SocketZilla &_socket, std::string password,
                        SockItToMe &epoll_instance)
@@ -31,6 +123,8 @@ std::vector<std::string> LoopDeLoop::extractLines(std::string &buffer) {
   }
   return lines;
 }
+
+
 
 void LoopDeLoop::handleCommand(Client *client, const std::string &line)
 {

@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <set>
+#include <sys/socket.h>
 
 class Client
 {
@@ -16,6 +17,10 @@ private:
   bool _hasUser;
   bool _isRegistered;
   std::set<std::string> _joinedChannels;
+
+  // ayoub
+
+  std::string file_buffer;
 
 public:
   Client(int fd);
@@ -52,4 +57,16 @@ public:
   void joinChannel(std::string chanelName) { _joinedChannels.insert(chanelName); }
   void partChannel(std::string &channel) { _joinedChannels.erase(channel); }
   void clearBuffer() { _buffer.clear(); };
+
+
+  // ayoub
+
+  void sendMessage(const std::string &message)
+  {
+    send(getFd(), message.c_str(), message.size(), 0);
+  }
+    
+    // Add file transfer buffer
+    std::string& getFileBuffer() { return file_buffer; }
+    void setFileBuffer(const std::string &buf) { file_buffer = buf; }
 };
