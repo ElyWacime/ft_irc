@@ -12,7 +12,7 @@
 #include <string>
 #include <unistd.h>
 
-// class Client;
+class Client;
 // class Channel;
 
 class LoopDeLoop {
@@ -50,11 +50,11 @@ public:
     return false;
   }
 
-  //ayoub
-    std::string generateTransferKey(const std::string &from, const std::string &to);
-    std::string generateServerFilename(const std::string &from, const std::string &to, const std::string &original_filename);
-    void cleanupTransfer(const std::string &key);
-    void handleFileTransferCommand(Client *client, const std::vector<std::string> &toks);
-    void sendToNick(const std::string &nickname, const std::string &message);
-    Client* findClientByNick(const std::string &nickname);
+  
+  std::string generateTransferKey(const std::string &from, const std::string &to);
+  std::string generateServerFilename(const std::string &from, const std::string &to, const std::string &original_filename);
+  void cleanupTransfer(const std::string &key);
+  void handleFileTransferCommand(Client *client, const std::vector<std::string> &token);
+  void  sendToNick(const std::string &nickname, const std::string  &message);
+  Client* findClientByNick(const std::string &nickname);
 };

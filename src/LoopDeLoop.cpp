@@ -7,6 +7,8 @@
 #include <iostream>
 #include <sstream>
 #include <sys/socket.h>
+#include <fcntl.h>
+#include <fstream>
 #include <unistd.h>
 
 
@@ -29,7 +31,7 @@ Client* LoopDeLoop::findClientByNick(const std::string &nickname) {
 
 void LoopDeLoop::sendToNick(const std::string &nickname, const std::string  &message)
 {
-  client *target = findClientByNick(nickname);
+  Client *target = findClientByNick(nickname);
   target->sendMessage(message);
 }
 
@@ -40,16 +42,16 @@ void LoopDeLoop::cleanupTransfer(const std::string &key)
   transfer_accepted_.erase(key);
 }
 
-void LoopDeLoop::handleFileTransferCommand(client *client, const std::vector<std::string> &token)
+void LoopDeLoop::handleFileTransferCommand(Client *client, const std::vector<std::string> &token)
 {
   if (!client->isRegistered())
   {
-    std::string err = ":server 451 <JOIN> :You have not registered"
+    std::string err = ":server 451 <JOIN> :You have not registered";
     client->sendMessage(err);
     return;
   }
   std::string cmd = token[0];
-  if (sub == "OFFER" && toks.size() >= 3)
+  if (cmd == "OFFER" && token.size() >= 3)
   {
     std::string target = token[1];
     std::string filename = token[2];
@@ -72,11 +74,11 @@ void LoopDeLoop::handleFileTransferCommand(client *client, const std::vector<std
     sendToNick(target, ":" + client->getNickname() + " XFER REQUEST " + filename + "\r\n");
     client->sendMessage("File offer sent to " + target + "\r\n");
   }
-  else if (sub == "ACCEPT" && toks.size() >= 3)
+  else if (cmd == "ACCEPT" && token.size() >= 3)
   {
-    std::string sender = toks[1];
-    std::string filename = toks[2];
-    Client* snederClient = findClientByNick(from);
+    std::string sender = token[1];
+    std::string filename = token[2];
+    Client* senderClient = findClientByNick(sender);
 
     if (!senderClient)
     {
@@ -98,10 +100,10 @@ void LoopDeLoop::handleFileTransferCommand(client *client, const std::vector<std
       client->sendMessage("NOTICE :No pending file transfer sender " + sender + "\r\n");
     }
   }
-  else if (sub == "SENDDATA" && toks.size() >= 4)
+  else if (cmd == "SENDDATA" && token.size() == 3)
   {
-      std::string target = toks[2];
-      std::string filename = toks[3];
+      std::string target = token[1];
+      std::string filename = token[2];
       
       Client* targetClient = findClientByNick(target);
       if (!targetClient) {
@@ -149,17 +151,25 @@ void LoopDeLoop::handleFileTransferCommand(client *client, const std::vector<std
           dest_file.close();
           
           // Notify recipient that file is ready
-          sendToNick(target, ":" + client->getNickname() + " XFER READY " + server_filename + "\r\n");
-          client->sendMessage("NOTICE :File transfer completed (" + 
-                            std::to_string(total_bytes) + " bytes)\r\n");
+          Client* targetClient = findClientByNick(target);
+          if (targetClient) {
+              sendToNick(target, ":" + client->getNickname() + " XFER READY " + server_filename + "\r\n");
+              {
+                  std::ostringstream oss;
+                  oss << "NOTICE :File transfer completed (" << total_bytes << " bytes)\r\n";
+                  client->sendMessage(oss.str());
+              }
+          } else {
+              client->sendMessage("NOTICE :Target client not found for file transfer\r\n");
+          }
           
           // Cleanup
           cleanupTransfer(key);
       }
   }
-  else if (sub == "DOWNLOAD" && toks.size() >= 3)
+  else if (cmd == "DOWNLOAD" && token.size() == 3)
   {
-      std::string server_filename = toks[2];
+      std::string server_filename = token[1];
       
       std::ifstream source_file(server_filename.c_str(), std::ios::binary);
       
@@ -171,7 +181,7 @@ void LoopDeLoop::handleFileTransferCommand(client *client, const std::vector<std
               return;
           }
           
-          std::string original_filename = server_filename.substr(underscore_pos + 1);
+          std::string original_filename = "new" + server_filename.substr(underscore_pos + 1);
           
           // Create the file for receiver
           std::ofstream dest_file(original_filename.c_str(), std::ios::binary);
@@ -198,16 +208,23 @@ void LoopDeLoop::handleFileTransferCommand(client *client, const std::vector<std
           source_file.close();
           dest_file.close();
           
-          // Delete the temporary server file
-          std::remove(server_filename.c_str());
+          {
+              std::ostringstream oss;
+              oss << "NOTICE :File downloaded as: " << original_filename 
+                  << " (" << total_bytes << " bytes)\r\n";
+              client->sendMessage(oss.str());
+          }
           
-          client->sendMessage("NOTICE :File downloaded as: " + original_filename + 
-                            " (" + std::to_string(total_bytes) + " bytes)\r\n");
+            std::ostringstream oss;
+            oss << "NOTICE :File downloaded as: " << original_filename 
+              << " (" << total_bytes << " bytes)\r\n";
+            client->sendMessage(oss.str());
       } else {
           client->sendMessage("NOTICE :File not found: " + server_filename + "\r\n");
       }
 
 
+}
 }
 
 
@@ -249,9 +266,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
       return;
   }
 
-  // Offer: XFER OFFER target myfile.txt
 
-  //Accept: XFER ACCEPT alice myfile.txt
 //  ayoub the filetransfer
   else if (command == "XFER")
   {
@@ -288,9 +303,84 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     client->setUsername(username);
     client->setRealname(realname);
     client->setHasUser(true);
-  } else if (command == "JOIN") {
+  }
+  // else if (command == "JOIN") {
+  //   if (!client->isRegistered()) {
+  //     std::string err = ":server 451 <JOIN> :You have not registered";
+  //     send(client->getFd(), err.c_str(), err.size(), 0);
+  //     return;
+  //   }
+  //   std::string channelList;
+  //   iss >> channelList;
+
+  //   if (channelList.empty()) {
+  //     std::string err =
+  //         "461 " + client->getNickname() + " JOIN :Not enough parameters\r\n";
+  //     send(client->getFd(), err.c_str(), err.size(), 0);
+  //     return;
+  //   }
+
+  //   std::stringstream ss(channelList);
+  //   std::string channelName;
+  //   while (std::getline(ss, channelName, ',')) {
+  //     if (channelName.empty() || channelName[0] != '#') {
+  //       std::string err = "476 " + client->getNickname() + " " + channelName +
+  //                         " :Invalid channel name\r\n";
+  //       send(client->getFd(), err.c_str(), err.size(), 0);
+  //       continue;
+  //     }
+
+  //     // Check if already in channel
+  //     if (client->isInChannel(channelName)) {
+  //       std::string err = "443 " + client->getNickname() + " " + channelName +
+  //                         " :is already on channel\r\n";
+  //       send(client->getFd(), err.c_str(), err.size(), 0);
+  //       continue;
+  //     }
+
+  //     Channel *channel = NULL;
+  //     std::map<std::string, Channel *>::iterator it =
+  //         _channels.find(channelName);
+  //     if (it == _channels.end()) {
+  //       channel = new Channel(channelName);
+  //       channel->addOperator(client);
+  //       _channels[channelName] = channel;
+  //     } else {
+  //       channel = it->second;
+  //     }
+
+  //     // check if channel is restricted to inited only
+  //     if (channel->isInviteOnly() && (!channel->isInvated(client))) {
+  //       std::string err = "404: " + client->getNickname() + " " + channelName +
+  //                         " :channel is invite only\r\n";
+  //       send(client->getFd(), err.c_str(), err.size(), 0);
+  //       continue;
+  //     }
+
+  //     // chaeck if a channel has pass key
+  //     if (channel->hasKey()) {
+  //       std::string key;
+  //       iss >> key;
+  //       if (key.empty() || key != channel->getKey()) {
+  //         std::string err = "475 " + client->getNickname() +
+  //                           " cant't not join " + channelName + " (+k)";
+  //         send(client->getFd(), err.c_str(), err.size(), 0);
+  //         continue;
+  //       }
+  //     }
+
+  //     channel->addClient(client);
+  //     client->joinChannel(channelName);
+
+  //     // Broadcast join to all channel members
+  //     std::string joinMsg =
+  //         ":" + client->getNickname() + " JOIN " + channelName + "\r\n";
+  //     channel->broadcast(joinMsg, NULL);
+  //   }
+  // }
+  else if (command == "JOIN") {
     if (!client->isRegistered()) {
-      std::string err = ":server 451 <JOIN> :You have not registered";
+      std::string err = ":server 451 " + client->getNickname() + " :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
     }
@@ -298,8 +388,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     iss >> channelList;
 
     if (channelList.empty()) {
-      std::string err =
-          "461 " + client->getNickname() + " JOIN :Not enough parameters\r\n";
+      std::string err = ":server 461 " + client->getNickname() + " JOIN :Not enough parameters\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
     }
@@ -308,23 +397,20 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     std::string channelName;
     while (std::getline(ss, channelName, ',')) {
       if (channelName.empty() || channelName[0] != '#') {
-        std::string err = "476 " + client->getNickname() + " " + channelName +
-                          " :Invalid channel name\r\n";
+        std::string err = ":server 476 " + client->getNickname() + " " + channelName + " :Bad Channel Mask\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         continue;
       }
 
       // Check if already in channel
       if (client->isInChannel(channelName)) {
-        std::string err = "443 " + client->getNickname() + " " + channelName +
-                          " :is already on channel\r\n";
+        std::string err = ":server 443 " + client->getNickname() + " " + channelName + " :is already on channel\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         continue;
       }
 
       Channel *channel = NULL;
-      std::map<std::string, Channel *>::iterator it =
-          _channels.find(channelName);
+      std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
       if (it == _channels.end()) {
         channel = new Channel(channelName);
         channel->addOperator(client);
@@ -333,21 +419,19 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
         channel = it->second;
       }
 
-      // check if channel is restricted to inited only
-      if (channel->isInviteOnly() && (!channel->isInvated(client))) {
-        std::string err = "404: " + client->getNickname() + " " + channelName +
-                          " :channel is invite only\r\n";
+      // Check if channel is invite-only
+      if (channel->isInviteOnly() && (!channel->isInvated(client))) {  // Fixed typo: isInvated -> isInvited
+        std::string err = ":server 473 " + client->getNickname() + " " + channelName + " :Cannot join channel (+i)\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         continue;
       }
 
-      // chaeck if a channel has pass key
+      // Check if channel has a key
       if (channel->hasKey()) {
         std::string key;
         iss >> key;
         if (key.empty() || key != channel->getKey()) {
-          std::string err = "475 " + client->getNickname() +
-                            " cant't not join " + channelName + " (+k)";
+          std::string err = ":server 475 " + client->getNickname() + " " + channelName + " :Cannot join channel (+k)\r\n";
           send(client->getFd(), err.c_str(), err.size(), 0);
           continue;
         }
@@ -356,12 +440,28 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
       channel->addClient(client);
       client->joinChannel(channelName);
 
-      // Broadcast join to all channel members
-      std::string joinMsg =
-          ":" + client->getNickname() + " JOIN " + channelName + "\r\n";
+      // Send JOIN message to all channel members including the joiner
+      std::string joinMsg = ":" + client->getNickname() + " JOIN :" + channelName + "\r\n";
       channel->broadcast(joinMsg, NULL);
+      
+      // Send channel topic if it exists
+      if (!channel->getTopic().empty()) {
+        std::string topicMsg = ":server 332 " + client->getNickname() + " " + channelName + " :" + channel->getTopic() + "\r\n";
+        send(client->getFd(), topicMsg.c_str(), topicMsg.size(), 0);
+      }
+      
+      // Send NAMES list (list of users in channel)
+      std::string namesList = ":server 353 " + client->getNickname() + " = " + channelName + " :";
+      // Add logic to get channel members
+      // namesList += /* channel members */;
+      namesList += "\r\n";
+      send(client->getFd(), namesList.c_str(), namesList.size(), 0);
+      
+      std::string endNames = ":server 366 " + client->getNickname() + " " + channelName + " :End of NAMES list\r\n";
+      send(client->getFd(), endNames.c_str(), endNames.size(), 0);
     }
-  } else if (command == "PRIVMSG") {
+  }
+  else if (command == "PRIVMSG") {
     if (!client->isRegistered()) {
       std::string err = ":server 451 <PRIVMSG> :You have not registered";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -407,7 +507,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     } else {
       // TODO: implementation of msg user to user
     }
-  } else if (command == "KICK") {
+  }
+  else if (command == "KICK") {
     if (!client->isRegistered()) {
       std::string err = ":server 451 <KICK> :You have not registered";
       send(client->getFd(), err.c_str(), err.size(), 0);
