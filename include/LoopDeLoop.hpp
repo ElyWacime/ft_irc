@@ -57,4 +57,14 @@ public:
   void handleFileTransferCommand(Client *client, const std::vector<std::string> &token);
   void  sendToNick(const std::string &nickname, const std::string  &message);
   Client* findClientByNick(const std::string &nickname);
+
+
+
+
+
+
+  //ayoub
+  void sendWelcomeMessages(Client *client)
+  Channel* findChannel(const std::string &channelName)
+  Client*:findClientByNickname(const std::string &nickname);
 };
