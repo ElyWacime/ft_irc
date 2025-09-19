@@ -4,7 +4,7 @@
 #include <set>
 #include <sys/socket.h>
 #include <sys/types.h>
-
+#include <vector>
 class Channel {
 private:
   std::string _name;
@@ -20,6 +20,10 @@ private:
   std::set<Client *> _invited;
 
 public:
+  std::vector<Client*> getClients()
+  {
+      return std::vector<Client*>(_clients.begin(), _clients.end());
+  }
   Channel(const std::string &name)
       : _name(name), _userLimit(-1), _inviteOnly(0), _topicRestricted(0),
         _hasKey(0) {}

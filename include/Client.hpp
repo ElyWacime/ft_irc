@@ -16,6 +16,7 @@ private:
   bool _hasNick;
   bool _hasUser;
   bool _isRegistered;
+  std::string _hostname;
   std::set<std::string> _joinedChannels;
 
   // ayoub
@@ -69,4 +70,6 @@ public:
     // Add file transfer buffer
     std::string& getFileBuffer() { return file_buffer; }
     void setFileBuffer(const std::string &buf) { file_buffer = buf; }
+
+    const std::string &getHostname() const { return _hostname; }
 };

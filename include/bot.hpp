@@ -105,13 +105,13 @@ public:
         iss >> command;
         if (command[0] != '/')
             return;
-        if (command == "/help")
+        if (command == "help")
         {
             std::string help = "Available commands: /joke, /quote, /ascii, /coin, /dice";
             send(client->getFd(), help.c_str(), help.size(), 0);
             return;
         }
-        else if (command == "/joke")
+        else if (command == "joke")
         {
             std::string joke = get_random_joke();
             send_message(client, joke);
