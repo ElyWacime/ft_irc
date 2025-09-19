@@ -284,7 +284,9 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     std::string pass;
     iss >> pass;
     client->setPassword(pass);
-  } else if (command == "NICK") {
+  }
+  else if (command == "NICK")
+  {
     std::string nick;
     iss >> nick;
     if (nickExist(nick)) {
@@ -294,7 +296,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     }
     client->setNickname(nick);
     client->setHasNick(true);
-  } else if (command == "USER") {
+  }
+  else if (command == "USER") {
     std::string username, unused, unused2, realname;
     iss >> username >> unused >> unused2;
     std::getline(iss, realname);
@@ -304,80 +307,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     client->setRealname(realname);
     client->setHasUser(true);
   }
-  // else if (command == "JOIN") {
-  //   if (!client->isRegistered()) {
-  //     std::string err = ":server 451 <JOIN> :You have not registered";
-  //     send(client->getFd(), err.c_str(), err.size(), 0);
-  //     return;
-  //   }
-  //   std::string channelList;
-  //   iss >> channelList;
-
-  //   if (channelList.empty()) {
-  //     std::string err =
-  //         "461 " + client->getNickname() + " JOIN :Not enough parameters\r\n";
-  //     send(client->getFd(), err.c_str(), err.size(), 0);
-  //     return;
-  //   }
-
-  //   std::stringstream ss(channelList);
-  //   std::string channelName;
-  //   while (std::getline(ss, channelName, ',')) {
-  //     if (channelName.empty() || channelName[0] != '#') {
-  //       std::string err = "476 " + client->getNickname() + " " + channelName +
-  //                         " :Invalid channel name\r\n";
-  //       send(client->getFd(), err.c_str(), err.size(), 0);
-  //       continue;
-  //     }
-
-  //     // Check if already in channel
-  //     if (client->isInChannel(channelName)) {
-  //       std::string err = "443 " + client->getNickname() + " " + channelName +
-  //                         " :is already on channel\r\n";
-  //       send(client->getFd(), err.c_str(), err.size(), 0);
-  //       continue;
-  //     }
-
-  //     Channel *channel = NULL;
-  //     std::map<std::string, Channel *>::iterator it =
-  //         _channels.find(channelName);
-  //     if (it == _channels.end()) {
-  //       channel = new Channel(channelName);
-  //       channel->addOperator(client);
-  //       _channels[channelName] = channel;
-  //     } else {
-  //       channel = it->second;
-  //     }
-
-  //     // check if channel is restricted to inited only
-  //     if (channel->isInviteOnly() && (!channel->isInvated(client))) {
-  //       std::string err = "404: " + client->getNickname() + " " + channelName +
-  //                         " :channel is invite only\r\n";
-  //       send(client->getFd(), err.c_str(), err.size(), 0);
-  //       continue;
-  //     }
-
-  //     // chaeck if a channel has pass key
-  //     if (channel->hasKey()) {
-  //       std::string key;
-  //       iss >> key;
-  //       if (key.empty() || key != channel->getKey()) {
-  //         std::string err = "475 " + client->getNickname() +
-  //                           " cant't not join " + channelName + " (+k)";
-  //         send(client->getFd(), err.c_str(), err.size(), 0);
-  //         continue;
-  //       }
-  //     }
-
-  //     channel->addClient(client);
-  //     client->joinChannel(channelName);
-
-  //     // Broadcast join to all channel members
-  //     std::string joinMsg =
-  //         ":" + client->getNickname() + " JOIN " + channelName + "\r\n";
-  //     channel->broadcast(joinMsg, NULL);
-  //   }
-  // }
   else if (command == "JOIN") {
     if (!client->isRegistered()) {
       std::string err = ":server 451 " + client->getNickname() + " :You have not registered\r\n";
