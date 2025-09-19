@@ -284,7 +284,9 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     iss >> pass;
     pass += "\r\n"; // Ensure CRLF is included
     client->setPassword(pass);
-  } else if (command == "NICK") {
+  }
+  else if (command == "NICK")
+  {
     std::string nick;
     iss >> nick;
     nick += "\r\n"; // Ensure CRLF is included
@@ -296,7 +298,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     }
     client->setNickname(nick);
     client->setHasNick(true);
-  } else if (command == "USER") {
+  }
+  else if (command == "USER") {
     std::string username, unused, unused2, realname;
     iss >> username >> unused >> unused2;
     std::getline(iss, realname);
