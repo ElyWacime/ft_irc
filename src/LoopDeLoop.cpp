@@ -421,13 +421,60 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
       send(client->getFd(), endNames.c_str(), endNames.size(), 0);
     }
   }
+  // else if (command == "PRIVMSG") {
+  //   if (!client->isRegistered()) {
+  //     // FIXED: Proper IRC error format with nickname and CRLF
+  //     std::string err = ":server 451 " + client->getNickname() + " PRIVMSG :You have not registered\r\n";
+  //     send(client->getFd(), err.c_str(), err.size(), 0);
+  //     return;
+  //   }
+  //   std::string target;
+  //   iss >> target;
+
+  //   std::string message;
+  //   std::getline(iss, message);
+  //   if (!message.empty() && message[0] == ':')
+  //     message.erase(0, 1);
+
+  //   if (target.empty() || message.empty()) {
+  //     // FIXED: Proper IRC error format with server prefix and CRLF
+  //     std::string err = ":server 461 " + client->getNickname() + " PRIVMSG :Not enough parameters\r\n";
+  //     send(client->getFd(), err.c_str(), err.size(), 0);
+  //     return;
+  //   }
+
+  //   // Sending to a channel
+  //   if (target[0] == '#') {
+  //     std::map<std::string, Channel *>::iterator it = _channels.find(target);
+  //     if (it == _channels.end()) {
+  //       // FIXED: Proper IRC error format with server prefix and CRLF
+  //       std::string err = ":server 403 " + client->getNickname() + " " + target + " :No such channel\r\n";
+  //       send(client->getFd(), err.c_str(), err.size(), 0);
+  //       return;
+  //     }
+
+  //     Channel *channel = it->second;
+
+  //     if (!client->isInChannel(target)) {
+  //       // FIXED: Proper IRC error format with server prefix and CRLF
+  //       std::string err = ":server 442 " + client->getNickname() + " " + target + " :You're not on that channel\r\n";
+  //       send(client->getFd(), err.c_str(), err.size(), 0);
+  //       return;
+  //     }
+
+  //     std::string fullMsg = ":" + client->getNickname() + " PRIVMSG " + target + " :" + message + "\r\n";
+  //     channel->broadcast(fullMsg, client);
+  //   } else {
+  //     // TODO: implementation of msg user to user
+  //   }
+  // }
   else if (command == "PRIVMSG") {
     if (!client->isRegistered()) {
-      // FIXED: Proper IRC error format with nickname and CRLF
-      std::string err = ":server 451 " + client->getNickname() + " PRIVMSG :You have not registered\r\n";
+      std::string err = ":server 451 " + client->getNickname() + " :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
     }
+    
     std::string target;
     iss >> target;
 
@@ -437,18 +484,26 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
       message.erase(0, 1);
 
     if (target.empty() || message.empty()) {
-      // FIXED: Proper IRC error format with server prefix and CRLF
-      std::string err = ":server 461 " + client->getNickname() + " PRIVMSG :Not enough parameters\r\n";
+      std::string err = ":server 461 " + client->getNickname() +
+                        " PRIVMSG :Not enough parameters\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
+    }
+
+    // Check if this is a CTCP message (for DCC file transfers)
+    if (!message.empty() && message[0] == '\001' && message[message.length()-1] == '\001') {
+        // Remove CTCP delimiters (\001)
+        std::string ctcpData = message.substr(1, message.length()-2);
+        handleCtcpMessage(client, target, ctcpData);
+        return;
     }
 
     // Sending to a channel
     if (target[0] == '#') {
       std::map<std::string, Channel *>::iterator it = _channels.find(target);
       if (it == _channels.end()) {
-        // FIXED: Proper IRC error format with server prefix and CRLF
-        std::string err = ":server 403 " + client->getNickname() + " " + target + " :No such channel\r\n";
+        std::string err = ":server 403 " + client->getNickname() + " " + target +
+                          " :No such channel\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         return;
       }
@@ -456,18 +511,36 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
       Channel *channel = it->second;
 
       if (!client->isInChannel(target)) {
-        // FIXED: Proper IRC error format with server prefix and CRLF
-        std::string err = ":server 442 " + client->getNickname() + " " + target + " :You're not on that channel\r\n";
+        std::string err = ":server 442 " + client->getNickname() + " " + target +
+                          " :You're not on that channel\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         return;
       }
 
-      std::string fullMsg = ":" + client->getNickname() + " PRIVMSG " + target + " :" + message + "\r\n";
+      // HexChat compatible format with full hostmask
+      std::string fullMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" +
+                            " PRIVMSG " + target + " :" + message + "\r\n";
       channel->broadcast(fullMsg, client);
-    } else {
-      // TODO: implementation of msg user to user
+    } 
+    else {
+      // Private message to user (user-to-user messaging)
+      Client *targetClient = findClientByNickname(target);
+      if (!targetClient) {
+        std::string err = ":server 401 " + client->getNickname() + " " + target + 
+                          " :No such nick/channel\r\n";
+        send(client->getFd(), err.c_str(), err.size(), 0);
+        return;
+      }
+
+      // Send private message with full hostmask for HexChat compatibility
+      std::string fullMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" +
+                            " PRIVMSG " + target + " :" + message + "\r\n";
+      send(targetClient->getFd(), fullMsg.c_str(), fullMsg.size(), 0);
     }
-  }
+}
+
+// Add this new function to handle CTCP messages (including DCC SEND)
+
   else if (command == "KICK") {
     if (!client->isRegistered()) {
       // FIXED: Proper IRC error format with nickname and CRLF
@@ -688,6 +761,90 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
   }
 }
 
+
+void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, const std::string &ctcpData)
+{
+    std::istringstream iss(ctcpData);
+    std::string ctcpCommand;
+    iss >> ctcpCommand;
+    
+    if (ctcpCommand == "DCC") {
+        std::string dccType;
+        iss >> dccType;
+        
+        if (dccType == "SEND") {
+            // DCC SEND filename host port filesize
+            std::string filename, host, port, filesize;
+            iss >> filename >> host >> port >> filesize;
+            
+            // Find target client
+            Client* targetClient = findClientByNickname(target);
+            if (!targetClient) {
+                std::string err = ":server 401 " + client->getNickname() + " " + target + 
+                                  " :No such nick/channel\r\n";
+                send(client->getFd(), err.c_str(), err.size(), 0);
+                return;
+            }
+            
+            // Forward the DCC SEND request to target user
+            // This is what HexChat expects to receive
+            std::string dccMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+                               " PRIVMSG " + target + " :\001DCC SEND " + filename + " " + host + " " + port + " " + filesize + "\001\r\n";
+            
+            send(targetClient->getFd(), dccMsg.c_str(), dccMsg.size(), 0);
+            
+            // Optional: Send confirmation to sender
+            std::string confirmMsg = ":server NOTICE " + client->getNickname() + 
+                                   " :DCC SEND request forwarded to " + target + "\r\n";
+            send(client->getFd(), confirmMsg.c_str(), confirmMsg.size(), 0);
+        }
+        else if (dccType == "ACCEPT") {
+            // DCC ACCEPT filename port position
+            std::string filename, port, position;
+            iss >> filename >> port >> position;
+            
+            // Find target client and forward the acceptance
+            Client* targetClient = findClientByNickname(target);
+            if (targetClient) {
+                std::string acceptMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+                                       " PRIVMSG " + target + " :\001DCC ACCEPT " + filename + " " + port + " " + position + "\001\r\n";
+                send(targetClient->getFd(), acceptMsg.c_str(), acceptMsg.size(), 0);
+            }
+        }
+        else if (dccType == "RESUME") {
+            // DCC RESUME filename port position
+            std::string filename, port, position;
+            iss >> filename >> port >> position;
+            
+            // Find target client and forward the resume request
+            Client* targetClient = findClientByNickname(target);
+            if (targetClient) {
+                std::string resumeMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+                                       " PRIVMSG " + target + " :\001DCC RESUME " + filename + " " + port + " " + position + "\001\r\n";
+                send(targetClient->getFd(), resumeMsg.c_str(), resumeMsg.size(), 0);
+            }
+        }
+    }
+    else if (ctcpCommand == "VERSION") {
+        // Handle VERSION request
+        std::string versionReply = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+                                 " NOTICE " + client->getNickname() + " :\001VERSION Your IRC Server 1.0\001\r\n";
+        send(client->getFd(), versionReply.c_str(), versionReply.size(), 0);
+    }
+    else if (ctcpCommand == "PING") {
+        // Handle PING request
+        std::string pingData;
+        iss >> pingData;
+        
+        Client* targetClient = findClientByNickname(target);
+        if (targetClient) {
+            std::string pingMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+                                " NOTICE " + target + " :\001PING " + pingData + "\001\r\n";
+            send(targetClient->getFd(), pingMsg.c_str(), pingMsg.size(), 0);
+        }
+    }
+    // Add more CTCP commands as needed
+}
 
 // void LoopDeLoop::handleCommand(Client *client, const std::string &line)
 // {
