@@ -57,4 +57,5 @@ public:
   void handleFileTransferCommand(Client *client, const std::vector<std::string> &token);
   void  sendToNick(const std::string &nickname, const std::string  &message);
   Client* findClientByNick(const std::string &nickname);
+  void handleCtcpMessage(Client *client, const std::string &target, const std::string &ctcpData);
 };

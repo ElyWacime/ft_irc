@@ -490,14 +490,18 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
       return;
     }
 
+    std::cout << "maybe 1PRIVMSG to " << target << " message: " << message << std::endl;
+
     // Check if this is a CTCP message (for DCC file transfers)
-    if (!message.empty() && message[0] == '\001' && message[message.length()-1] == '\001') {
+    if (!message.empty() && message.find("DCC ") != std::string::npos) {
         // Remove CTCP delimiters (\001)
+        std::cout << "ayoub1 here" << std::endl;
         std::string ctcpData = message.substr(1, message.length()-2);
         handleCtcpMessage(client, target, ctcpData);
         return;
     }
 
+    // std::cout << "maybe 2Regular PRIVMSG to " << target << " message: " << message << std::endl;
     // Sending to a channel
     if (target[0] == '#') {
       std::map<std::string, Channel *>::iterator it = _channels.find(target);
@@ -524,7 +528,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     } 
     else {
       // Private message to user (user-to-user messaging)
-      Client *targetClient = findClientByNickname(target);
+      Client *targetClient = findClientByNick(target);
       if (!targetClient) {
         std::string err = ":server 401 " + client->getNickname() + " " + target + 
                           " :No such nick/channel\r\n";
@@ -767,44 +771,78 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
     std::istringstream iss(ctcpData);
     std::string ctcpCommand;
     iss >> ctcpCommand;
-    
-    if (ctcpCommand == "DCC") {
+    std::cout << " yess yess  CTCP Command: :" << ctcpCommand << std::endl;
+    std::cout << " yess yess  ctcpdata: :" << ctcpData << std::endl;
+    if (ctcpCommand.find("DCC") != std::string::npos) {
         std::string dccType;
         iss >> dccType;
         
-        if (dccType == "SEND") {
-            // DCC SEND filename host port filesize
-            std::string filename, host, port, filesize;
-            iss >> filename >> host >> port >> filesize;
-            
-            // Find target client
-            Client* targetClient = findClientByNickname(target);
-            if (!targetClient) {
-                std::string err = ":server 401 " + client->getNickname() + " " + target + 
-                                  " :No such nick/channel\r\n";
-                send(client->getFd(), err.c_str(), err.size(), 0);
-                return;
-            }
-            
-            // Forward the DCC SEND request to target user
-            // This is what HexChat expects to receive
-            std::string dccMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
-                               " PRIVMSG " + target + " :\001DCC SEND " + filename + " " + host + " " + port + " " + filesize + "\001\r\n";
-            
-            send(targetClient->getFd(), dccMsg.c_str(), dccMsg.size(), 0);
-            
-            // Optional: Send confirmation to sender
-            std::string confirmMsg = ":server NOTICE " + client->getNickname() + 
-                                   " :DCC SEND request forwarded to " + target + "\r\n";
-            send(client->getFd(), confirmMsg.c_str(), confirmMsg.size(), 0);
+        std::cout << "111111111 DCC Type: " << dccType << std::endl;
+        if (dccType == "SEND")
+        {
+          std::string filename, host, port, filesize;
+    
+        // Skip whitespace
+        iss >> std::ws;
+        
+        // Read filename (handling quotes)
+        if (iss.peek() == '"') {
+            char quote;
+            iss >> quote; // Read opening quote
+            std::getline(iss, filename, '"'); // Read until closing quote
+            filename = "\"" + filename + "\""; // Keep the quotes if needed
+        } else {
+            iss >> filename; // Read normally
         }
+        
+        // Read the rest
+        iss >> host >> port >> filesize;
+        
+        std::cout << "Parsed: " << filename << " | " << host << " | " << port << " | " << filesize << std::endl;
+              
+          Client* targetClient = findClientByNick(target);
+          if (!targetClient) {
+              std::string err = ":server 401 " + client->getNickname() + " " + target + 
+                                " :No such nick/channel\r\n";
+              send(client->getFd(), err.c_str(), err.size(), 0);
+              return;
+          }
+          
+          // Convert decimal IP to dotted-quad format
+          unsigned long hostNum = 0;
+          const char* hostStr = host.c_str();
+          char* endPtr;
+          hostNum = strtoul(hostStr, &endPtr, 10);
+          
+          if (*endPtr == '\0') { // Conversion successful
+              char ipAddress[16];
+              snprintf(ipAddress, sizeof(ipAddress), "%lu.%lu.%lu.%lu",
+                      (hostNum >> 24) & 0xFF,
+                      (hostNum >> 16) & 0xFF,
+                      (hostNum >> 8) & 0xFF,
+                      hostNum & 0xFF);
+              host = ipAddress;
+          }
+          // If conversion fails, keep original host value
+          
+          // HexChat expects this exact format
+          std::string dccMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@" + client->getHostname() + 
+                             " PRIVMSG " + target + " :\001DCC SEND " + filename + " " + host + " " + port + " " + filesize + "\001\r\n";
+          
+          std::cout << "ayoub test " << target << ": " << dccMsg << std::endl;
+          send(targetClient->getFd(), dccMsg.c_str(), dccMsg.size(), 0);
+          
+          std::string confirmMsg = ":server NOTICE " + client->getNickname() + 
+                                 " :DCC SEND request forwarded to " + target + "\r\n";
+          send(client->getFd(), confirmMsg.c_str(), confirmMsg.size(), 0);
+      }
         else if (dccType == "ACCEPT") {
             // DCC ACCEPT filename port position
             std::string filename, port, position;
             iss >> filename >> port >> position;
             
             // Find target client and forward the acceptance
-            Client* targetClient = findClientByNickname(target);
+            Client* targetClient = findClientByNick(target);
             if (targetClient) {
                 std::string acceptMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
                                        " PRIVMSG " + target + " :\001DCC ACCEPT " + filename + " " + port + " " + position + "\001\r\n";
@@ -817,7 +855,7 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
             iss >> filename >> port >> position;
             
             // Find target client and forward the resume request
-            Client* targetClient = findClientByNickname(target);
+            Client* targetClient = findClientByNick(target);
             if (targetClient) {
                 std::string resumeMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
                                        " PRIVMSG " + target + " :\001DCC RESUME " + filename + " " + port + " " + position + "\001\r\n";
@@ -836,7 +874,7 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
         std::string pingData;
         iss >> pingData;
         
-        Client* targetClient = findClientByNickname(target);
+        Client* targetClient = findClientByNick(target);
         if (targetClient) {
             std::string pingMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
                                 " NOTICE " + target + " :\001PING " + pingData + "\001\r\n";
