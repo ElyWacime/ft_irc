@@ -490,11 +490,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
       return;
     }
 
-    std::cout << "maybe 1PRIVMSG to " << target << " message: " << message << std::endl;
 
-    // Check if this is a CTCP message (for DCC file transfers)
     if (!message.empty() && message.find("DCC ") != std::string::npos) {
-        // Remove CTCP delimiters (\001)
         std::cout << "ayoub1 here" << std::endl;
         std::string ctcpData = message.substr(1, message.length()-2);
         handleCtcpMessage(client, target, ctcpData);
@@ -771,13 +768,12 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
     std::istringstream iss(ctcpData);
     std::string ctcpCommand;
     iss >> ctcpCommand;
-    std::cout << " yess yess  CTCP Command: :" << ctcpCommand << std::endl;
-    std::cout << " yess yess  ctcpdata: :" << ctcpData << std::endl;
+
     if (ctcpCommand.find("DCC") != std::string::npos) {
         std::string dccType;
         iss >> dccType;
         
-        std::cout << "111111111 DCC Type: " << dccType << std::endl;
+        std::cout << "test ayoub DCC Type: " << dccType << std::endl;
         if (dccType == "SEND")
         {
           std::string filename, host, port, filesize;
@@ -806,23 +802,25 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
                                 " :No such nick/channel\r\n";
               send(client->getFd(), err.c_str(), err.size(), 0);
               return;
-          }
-          
-          // Convert decimal IP to dotted-quad format
-          unsigned long hostNum = 0;
-          const char* hostStr = host.c_str();
-          char* endPtr;
-          hostNum = strtoul(hostStr, &endPtr, 10);
-          
-          if (*endPtr == '\0') { // Conversion successful
+            }
+
+            // Convert decimal IP to dotted-quad format
+            unsigned long hostNum = 0;
+            const char* hostStr = host.c_str();
+            char* endPtr;
+            hostNum = strtoul(hostStr, &endPtr, 10);
+
+            if (*endPtr == '\0') { // Conversion successful
               char ipAddress[16];
               snprintf(ipAddress, sizeof(ipAddress), "%lu.%lu.%lu.%lu",
-                      (hostNum >> 24) & 0xFF,
-                      (hostNum >> 16) & 0xFF,
-                      (hostNum >> 8) & 0xFF,
-                      hostNum & 0xFF);
+                  (hostNum >> 24) & 0xFF,
+                  (hostNum >> 16) & 0xFF,
+                  (hostNum >> 8) & 0xFF,
+                  hostNum & 0xFF);
               host = ipAddress;
-          }
+            } else {
+              host = "127.0.0.1"; // Default to localhost if conversion fails
+            }
           // If conversion fails, keep original host value
           
           // HexChat expects this exact format
@@ -849,7 +847,7 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
                 send(targetClient->getFd(), acceptMsg.c_str(), acceptMsg.size(), 0);
             }
         }
-        else if (dccType == "RESUME") {
+        else if (dccType == "GET") {
             // DCC RESUME filename port position
             std::string filename, port, position;
             iss >> filename >> port >> position;
@@ -1393,3 +1391,6 @@ void LoopDeLoop::run() {
     }
   }
 }
+
+
+//https://claude.ai/share/0f690f6d-d7ce-4edd-b88a-74e9b00837e0
