@@ -499,7 +499,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
     }
 
     // std::cout << "maybe 2Regular PRIVMSG to " << target << " message: " << message << std::endl;
-    // Sending to a channel
+    // Sending to a channelLCD .
     if (target[0] == '#') {
       std::map<std::string, Channel *>::iterator it = _channels.find(target);
       if (it == _channels.end()) {
@@ -778,20 +778,17 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
         {
           std::string filename, host, port, filesize;
     
-        // Skip whitespace
         iss >> std::ws;
         
-        // Read filename (handling quotes)
         if (iss.peek() == '"') {
             char quote;
-            iss >> quote; // Read opening quote
-            std::getline(iss, filename, '"'); // Read until closing quote
-            filename = "\"" + filename + "\""; // Keep the quotes if needed
+            iss >> quote;
+            std::getline(iss, filename, '"');
+            filename = "\"" + filename + "\"";
         } else {
-            iss >> filename; // Read normally
+            iss >> filename;
         }
         
-        // Read the rest
         iss >> host >> port >> filesize;
         
         std::cout << "Parsed: " << filename << " | " << host << " | " << port << " | " << filesize << std::endl;
@@ -804,26 +801,21 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
               return;
             }
 
-            // Convert decimal IP to dotted-quad format
-            unsigned long hostNum = 0;
-            const char* hostStr = host.c_str();
-            char* endPtr;
-            hostNum = strtoul(hostStr, &endPtr, 10);
+            // unsigned long hostNum = 0;
+            // const char* hostStr = host.c_str();
+            // char* endPtr;
+            // hostNum = strtoul(hostStr, &endPtr, 10);
 
-            if (*endPtr == '\0') { // Conversion successful
-              char ipAddress[16];
-              snprintf(ipAddress, sizeof(ipAddress), "%lu.%lu.%lu.%lu",
-                  (hostNum >> 24) & 0xFF,
-                  (hostNum >> 16) & 0xFF,
-                  (hostNum >> 8) & 0xFF,
-                  hostNum & 0xFF);
-              host = ipAddress;
-            } else {
-              host = "127.0.0.1"; // Default to localhost if conversion fails
-            }
-          // If conversion fails, keep original host value
-          
-          // HexChat expects this exact format
+            // if (*endPtr == '\0') { // Conversion successful
+            //   char ipAddress[16];
+            //   snprintf(ipAddress, sizeof(ipAddress), "%lu%lu%lu%lu",
+            //       (hostNum >> 24) & 0xFF,
+            //       (hostNum >> 16) & 0xFF,
+            //       (hostNum >> 8) & 0xFF,
+            //       hostNum & 0xFF);
+            //   host = ipAddress;
+            // }
+
           std::string dccMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@" + client->getHostname() + 
                              " PRIVMSG " + target + " :\001DCC SEND " + filename + " " + host + " " + port + " " + filesize + "\001\r\n";
           
@@ -834,51 +826,50 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
                                  " :DCC SEND request forwarded to " + target + "\r\n";
           send(client->getFd(), confirmMsg.c_str(), confirmMsg.size(), 0);
       }
-        else if (dccType == "ACCEPT") {
-            // DCC ACCEPT filename port position
-            std::string filename, port, position;
-            iss >> filename >> port >> position;
+        // else if (dccType == "ACCEPT") {
+        //     std::string filename, port, position;
+        //     iss >> filename >> port >> position;
             
-            // Find target client and forward the acceptance
-            Client* targetClient = findClientByNick(target);
-            if (targetClient) {
-                std::string acceptMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
-                                       " PRIVMSG " + target + " :\001DCC ACCEPT " + filename + " " + port + " " + position + "\001\r\n";
-                send(targetClient->getFd(), acceptMsg.c_str(), acceptMsg.size(), 0);
-            }
-        }
-        else if (dccType == "GET") {
-            // DCC RESUME filename port position
-            std::string filename, port, position;
-            iss >> filename >> port >> position;
+        //     // Find target client and forward the acceptance
+        //     Client* targetClient = findClientByNick(target);
+        //     if (targetClient) {
+        //         std::string acceptMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+        //                                " PRIVMSG " + target + " :\001DCC ACCEPT " + filename + " " + port + " " + position + "\001\r\n";
+        //         send(targetClient->getFd(), acceptMsg.c_str(), acceptMsg.size(), 0);
+        //     }
+        // }
+        // else if (dccType == "GET") {
+        //     // DCC RESUME filename port position
+        //     std::string filename, port, position;
+        //     iss >> filename >> port >> position;
             
-            // Find target client and forward the resume request
-            Client* targetClient = findClientByNick(target);
-            if (targetClient) {
-                std::string resumeMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
-                                       " PRIVMSG " + target + " :\001DCC RESUME " + filename + " " + port + " " + position + "\001\r\n";
-                send(targetClient->getFd(), resumeMsg.c_str(), resumeMsg.size(), 0);
-            }
-        }
+        //     // Find target client and forward the resume request
+        //     Client* targetClient = findClientByNick(target);
+        //     if (targetClient) {
+        //         std::string resumeMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+        //                                " PRIVMSG " + target + " :\001DCC RESUME " + filename + " " + port + " " + position + "\001\r\n";
+        //         send(targetClient->getFd(), resumeMsg.c_str(), resumeMsg.size(), 0);
+        //     }
+        // }
     }
-    else if (ctcpCommand == "VERSION") {
-        // Handle VERSION request
-        std::string versionReply = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
-                                 " NOTICE " + client->getNickname() + " :\001VERSION Your IRC Server 1.0\001\r\n";
-        send(client->getFd(), versionReply.c_str(), versionReply.size(), 0);
-    }
-    else if (ctcpCommand == "PING") {
-        // Handle PING request
-        std::string pingData;
-        iss >> pingData;
+    // else if (ctcpCommand == "VERSION") {
+    //     // Handle VERSION 
+    //     std::string versionReply = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+    //                              " NOTICE " + client->getNickname() + " :\001VERSION Your IRC Server 1.0\001\r\n";
+    //     send(client->getFd(), versionReply.c_str(), versionReply.size(), 0);
+    // }
+    // else if (ctcpCommand == "PING") {
+    //     // Handle PING request
+    //     std::string pingData;
+    //     iss >> pingData;
         
-        Client* targetClient = findClientByNick(target);
-        if (targetClient) {
-            std::string pingMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
-                                " NOTICE " + target + " :\001PING " + pingData + "\001\r\n";
-            send(targetClient->getFd(), pingMsg.c_str(), pingMsg.size(), 0);
-        }
-    }
+    //     Client* targetClient = findClientByNick(target);
+    //     if (targetClient) {
+    //         std::string pingMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" + 
+    //                             " NOTICE " + target + " :\001PING " + pingData + "\001\r\n";
+    //         send(targetClient->getFd(), pingMsg.c_str(), pingMsg.size(), 0);
+    //     }
+    // }
     // Add more CTCP commands as needed
 }
 
