@@ -17,6 +17,11 @@ class Client;
 
 class LoopDeLoop {
 private:
+
+  Client *_bot;
+  std::vector<std::string> badwords = {
+      "shit", "fuck", "nigger"
+  };
   SocketZilla _serverSocket;
   std::string _password;
   SockItToMe _poller;
@@ -33,6 +38,10 @@ private:
     
 
 public:
+
+  Client * get_bot_client() {
+    return _bot;
+    }
   LoopDeLoop(SocketZilla &_socket, std::string password,
              SockItToMe &epoll_instance);
   ~LoopDeLoop();
