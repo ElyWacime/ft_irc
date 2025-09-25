@@ -7,14 +7,14 @@
 #include <vector>
 class Channel {
 private:
-  bool _has_bot;
-  std::string _name;
-  std::string _topic;
-  std::string _key;
-  int _userLimit;
-  bool _inviteOnly;
-  bool _topicRestricted;
-  bool _hasKey;
+std::string _name;
+std::string _topic;
+std::string _key;
+int _userLimit;
+bool _inviteOnly;
+bool _topicRestricted;
+bool _hasKey;
+bool _has_bot;
 
   std::set<Client *> _clients;
   std::set<Client *> _operators;
@@ -26,8 +26,8 @@ public:
       return std::vector<Client*>(_clients.begin(), _clients.end());
   }
   Channel(const std::string &name)
-      : _name(name), _userLimit(-1), _inviteOnly(0), _topicRestricted(0), _has_bot(0),
-        _hasKey(0) {}
+      : _name(name), _userLimit(-1), _inviteOnly(0), _topicRestricted(0),
+        _hasKey(0), _has_bot(0) {}
   const std::string &getName() const { return _name; }
   const std::string &getTopic() const { return _topic; }
   void setTopic(const std::string &topic) { _topic = topic; }

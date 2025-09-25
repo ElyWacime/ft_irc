@@ -18,10 +18,14 @@ class Client;
 class LoopDeLoop {
 private:
 
-  Client *_bot;
-  std::vector<std::string> badwords = {
-      "shit", "fuck", "nigger"
-  };
+  Client *_botClient;
+  bool _botEnabled;
+  std::vector<std::string> _badWords;
+  void createBotClient();
+  void addBotToChannel(const std::string& channelName);
+  bool containsBadWords(const std::string& message);
+  void handleBot(Client* sender, const std::string& channelName, const std::string& message);
+    
   SocketZilla _serverSocket;
   std::string _password;
   SockItToMe _poller;
@@ -39,9 +43,6 @@ private:
 
 public:
 
-  Client * get_bot_client() {
-    return _bot;
-    }
   LoopDeLoop(SocketZilla &_socket, std::string password,
              SockItToMe &epoll_instance);
   ~LoopDeLoop();

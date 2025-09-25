@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <sys/socket.h>
+#include <algorithm>
 #include <fcntl.h>
 #include <fstream>
 #include <unistd.h>
@@ -35,200 +36,6 @@ void LoopDeLoop::sendToNick(const std::string &nickname, const std::string  &mes
   target->sendMessage(message);
 }
 
-void LoopDeLoop::cleanupTransfer(const std::string &key)
-{
-  transfer_buffers_.erase(key);
-  transfer_filenames_.erase(key);
-  transfer_accepted_.erase(key);
-}
-
-void LoopDeLoop::handleFileTransferCommand(Client *client, const std::vector<std::string> &token)
-{
-  if (!client->isRegistered())
-  {
-    std::string err = ":server 451 <JOIN> :You have not registered";
-    client->sendMessage(err);
-    return;
-  }
-  std::string cmd = token[0];
-  if (cmd == "OFFER" && token.size() >= 3)
-  {
-    std::string target = token[1];
-    std::string filename = token[2];
-
-    
-    Client* targetClient = findClientByNick(target);
-    if (!targetClient) {
-        std::string err = "401 " + target + " :No such nick/channel\r\n";
-        send(client->getFd(), err.c_str(), err.size(), 0);
-        return;
-    }
-    
-    std::string key = generateTransferKey(client->getNickname(), target);
-    cleanupTransfer(key);
-    
-    transfer_filenames_[key] = filename;
-    transfer_accepted_[key] = false;
-    transfer_buffers_[key] = "";
-    
-    sendToNick(target, ":" + client->getNickname() + " XFER REQUEST " + filename + "\r\n");
-    client->sendMessage("File offer sent to " + target + "\r\n");
-  }
-  else if (cmd == "ACCEPT" && token.size() >= 3)
-  {
-    std::string sender = token[1];
-    std::string filename = token[2];
-    Client* senderClient = findClientByNick(sender);
-
-    if (!senderClient)
-    {
-      std::string err = "401 " + sender + " :No such client\r\n";
-      client->sendMessage(err);
-      return;
-    }
-    
-    std::string key = generateTransferKey(sender, client->getNickname());
-    
-    if (transfer_filenames_.count(key) > 0 && transfer_filenames_[key] == filename)
-    {
-      transfer_accepted_[key] = true;
-      sendToNick(sender, ":" + client->getNickname() + " XFER ACCEPTED " + filename + "\r\n");
-      client->sendMessage("NOTICE :Ready to receive file sender " + sender + "\r\n");
-    }
-    else
-    {
-      client->sendMessage("NOTICE :No pending file transfer sender " + sender + "\r\n");
-    }
-  }
-  else if (cmd == "SENDDATA" && token.size() == 3)
-  {
-      std::string target = token[1];
-      std::string filename = token[2];
-      
-      Client* targetClient = findClientByNick(target);
-      if (!targetClient) {
-          std::string err = "401 " + target + " :No such nick/channel\r\n";
-          send(client->getFd(), err.c_str(), err.size(), 0);
-          return;
-      }
-      
-      std::string key = generateTransferKey(client->getNickname(), target);
-      
-      if (transfer_accepted_.count(key) > 0 && transfer_accepted_[key] && 
-          transfer_filenames_[key] == filename) {
-          
-          // Read source file in chunks
-          std::ifstream source_file(filename.c_str(), std::ios::binary);
-          if (!source_file) {
-              client->sendMessage("NOTICE :Cannot open file: " + filename + "\r\n");
-              return;
-          }
-          
-          // Generate server filename
-          std::string server_filename = generateServerFilename(client->getNickname(), target, filename);
-          std::ofstream dest_file(server_filename.c_str(), std::ios::binary);
-          
-          if (!dest_file) {
-              client->sendMessage("NOTICE :Cannot create server file\r\n");
-              source_file.close();
-              return;
-          }
-          
-          // Read and write in chunks internally (no messages to user)
-          const size_t CHUNK_SIZE = 8192; // 8KB chunks
-          char buffer[CHUNK_SIZE];
-          size_t total_bytes = 0;
-          
-          while (source_file.read(buffer, CHUNK_SIZE) || source_file.gcount() > 0) {
-              size_t bytes_read = source_file.gcount();
-              dest_file.write(buffer, bytes_read);
-              total_bytes += bytes_read;
-              
-              // Chunking happens internally, no messages sent to user
-          }
-          
-          source_file.close();
-          dest_file.close();
-          
-          // Notify recipient that file is ready
-          Client* targetClient = findClientByNick(target);
-          if (targetClient) {
-              sendToNick(target, ":" + client->getNickname() + " XFER READY " + server_filename + "\r\n");
-              {
-                  std::ostringstream oss;
-                  oss << "NOTICE :File transfer completed (" << total_bytes << " bytes)\r\n";
-                  client->sendMessage(oss.str());
-              }
-          } else {
-              client->sendMessage("NOTICE :Target client not found for file transfer\r\n");
-          }
-          
-          // Cleanup
-          cleanupTransfer(key);
-      }
-  }
-  else if (cmd == "DOWNLOAD" && token.size() == 3)
-  {
-      std::string server_filename = token[1];
-      
-      std::ifstream source_file(server_filename.c_str(), std::ios::binary);
-      
-      if (source_file) {
-          // Extract original filename from server filename
-          size_t underscore_pos = server_filename.find('_');
-          if (underscore_pos == std::string::npos) {
-              client->sendMessage("NOTICE :Invalid server filename\r\n");
-              return;
-          }
-          
-          std::string original_filename = "new" + server_filename.substr(underscore_pos + 1);
-          
-          // Create the file for receiver
-          std::ofstream dest_file(original_filename.c_str(), std::ios::binary);
-          
-          if (!dest_file) {
-              client->sendMessage("NOTICE :Cannot create file: " + original_filename + "\r\n");
-              source_file.close();
-              return;
-          }
-          
-          // Read and write in chunks internally
-          const size_t CHUNK_SIZE = 8192;
-          char buffer[CHUNK_SIZE];
-          size_t total_bytes = 0;
-          
-          while (source_file.read(buffer, CHUNK_SIZE) || source_file.gcount() > 0) {
-              size_t bytes_read = source_file.gcount();
-              dest_file.write(buffer, bytes_read);
-              total_bytes += bytes_read;
-              
-              // Chunking happens internally, no messages sent to user
-          }
-          
-          source_file.close();
-          dest_file.close();
-          
-          {
-              std::ostringstream oss;
-              oss << "NOTICE :File downloaded as: " << original_filename 
-                  << " (" << total_bytes << " bytes)\r\n";
-              client->sendMessage(oss.str());
-          }
-          
-            std::ostringstream oss;
-            oss << "NOTICE :File downloaded as: " << original_filename 
-              << " (" << total_bytes << " bytes)\r\n";
-            client->sendMessage(oss.str());
-      } else {
-          client->sendMessage("NOTICE :File not found: " + server_filename + "\r\n");
-      }
-
-
-}
-}
-
-
-
 LoopDeLoop::LoopDeLoop(SocketZilla &_socket, std::string password,
                        SockItToMe &epoll_instance)
     : _serverSocket(_socket), _password(password), _poller(epoll_instance) {
@@ -249,11 +56,164 @@ std::vector<std::string> LoopDeLoop::extractLines(std::string &buffer) {
   }
   return lines;
 }
+////////                      test bootttt
+
+void LoopDeLoop::createBotClient() {
+  _botClient = new Client(-1);
+  _botClient->setNickname("daveBot");
+  _botClient->setUsername("davebot");
+  _botClient->setRealname("Moderation Bot");
+  _botClient->setHostname("server");
+  _botClient->setRegistered(true);
+  _botEnabled = true;
+  
+  _badWords.push_back("fuck");
+  _badWords.push_back("badword");
+  _badWords.push_back("idiot");
+  _badWords.push_back("stupid");
+  _badWords.push_back("hate");
+  std::cout << " bot client created: " << _botClient->getNickname() << std::endl;
+}
+
+void LoopDeLoop::addBotToChannel(const std::string& channelName)
+{
+  if (!_botEnabled || !_botClient)
+    return;
+  std::map<std::string, Channel*>::iterator it = _channels.find(channelName);
+  if (it == _channels.end())
+    return;
+  
+  Channel* channel = it->second;
+  if (channel->hasClient(_botClient))
+    return;
+  
+  channel->addClient(_botClient);
+  _botClient->joinChannel(channelName);
+  
+  std::string joinMsg = ":" + _botClient->getNickname() + "!" + _botClient->getUsername() + "@" + _botClient->getHostname() + " JOIN :" + channelName + "\r\n";
+  
+  const std::vector<Client*>& clients = channel->getClients();
+  for (size_t i = 0; i < clients.size(); ++i) {
+      Client* client = clients[i];
+      if (client->getFd() != -1) {
+          send(client->getFd(), joinMsg.c_str(), joinMsg.size(), 0);
+      }
+  }
+  
+
+  std::string welcomeMsg = ":" + _botClient->getNickname() + " PRIVMSG " + channelName + " :🤖 ModBot has joined to help moderate this channel!\r\n";
+  for (size_t i = 0; i < clients.size(); ++i) {
+      Client* client = clients[i];
+      if (client->getFd() != -1) {
+          send(client->getFd(), welcomeMsg.c_str(), welcomeMsg.size(), 0);
+      }
+  }
+  
+  std::cout << "🤖 Bot added to channel: " << channelName << std::endl;
+}
+
+bool LoopDeLoop::containsBadWords(const std::string& message) {
+  std::string lowerMessage = message;
+  std::transform(lowerMessage.begin(), lowerMessage.end(), lowerMessage.begin(), ::tolower);
+  
+  for (size_t i = 0; i < _badWords.size(); ++i) {
+      if (lowerMessage.find(_badWords[i]) != std::string::npos) {
+          return true;
+      }
+  }
+  return false;
+}
+void LoopDeLoop::handleBot(Client* sender, const std::string& channelName, const std::string& message) {
+  if (!_botEnabled || !_botClient) return;
+    std::cout << message << std::endl;
+
+  std::istringstream iss(message);
+  std::string command, args;
+  iss >> command >> args;
+  if(!command.empty() && command[0] == ':')
+    command.erase(0, 1);
+  if(command.empty())
+    return;
+  if (command[0] == '@' || command.length() > 1)
+   {
+      if (command == "@help" && args.empty()) {
+          std::string helpMsg = ":" + _botClient->getNickname() + " PRIVMSG " + channelName + 
+                                " :Available commands: joke, quote, ascii, coin, dice\r\n";
+          sendToNick(sender->getNickname(), helpMsg);
+          return;
+      } 
+      else if (command == "@joke" && args.empty()) {
+          bot b;
+          std::string joke = b.get_random_joke();
+          std::string jokeMsg = ":" + _botClient->getNickname() + " PRIVMSG " + channelName + 
+                                " :" + joke + "\r\n";
+          sendToNick(sender->getNickname(), jokeMsg);
+          return;
+      } 
+      else if (command == "@quote" && args.empty()) {
+          bot b;
+          std::string quote = b.get_random_quote();
+          std::string quoteMsg = ":" + _botClient->getNickname() + " PRIVMSG " + channelName + 
+                                 " :" + quote + "\r\n";
+          sendToNick(sender->getNickname(), quoteMsg);
+          return;
+      } 
+      else if (command == "@ascii" && args.empty()) {
+          bot b;
+          std::string ascii = b.get_random_ascii();
+          std::string asciiMsg = ":" + _botClient->getNickname() + " PRIVMSG " + channelName + 
+                                 " :\r\n" + ascii + "\r\n";
+          sendToNick(sender->getNickname(), asciiMsg);
+          return;
+      } 
+      else if (command == "@coin" && args.empty()) {
+          bot b;
+          std::string coin = b.get_random_coin();
+          std::string coinMsg = ":" + _botClient->getNickname() + " PRIVMSG " + channelName + 
+                                " :" + coin + "\r\n";
+          sendToNick(sender->getNickname(), coinMsg);
+          return;
+      } 
+      else if (command == "@dice" && args.empty()) {
+          bot b;
+          std::string dice = b.get_random_dice();
+          std::string diceMsg = ":" + _botClient->getNickname() + " PRIVMSG " + channelName + 
+                                " :" + sender->getNickname() + " rolled a " + dice + "\r\n";
+          sendToNick(sender->getNickname(), diceMsg);
+          return;
+      }
+
+    }
+  
+  if (containsBadWords(message))
+  {
+      std::map<std::string, Channel*>::iterator it = _channels.find(channelName);
+      if (it == _channels.end())
+        return;
+      Channel* channel = it->second;
+      
+      std::string warningMsg = ":" + _botClient->getNickname() + " PRIVMSG " + channelName + 
+                             " :" + sender->getNickname() + ", please watch your language!\r\n";
+      
+      const std::vector<Client*>& clients = channel->getClients();
+      for (size_t i = 0; i < clients.size(); ++i) {
+          Client* client = clients[i];
+          if (client->getFd() != -1) { // Only send to real clients
+              send(client->getFd(), warningMsg.c_str(), warningMsg.size(), 0);
+          }
+      }
+      
+      std::cout << "⚠️ Bot warned user " << sender->getNickname() << " in " << channelName << std::endl;
+  }
+}
 
 
 
+
+///      sscscscs
 void LoopDeLoop::handleCommand(Client *client, const std::string &line)
 {
+  std::cout << "check " << line << std::endl;
   std::istringstream iss(line);
 
   bot bot;
@@ -262,6 +222,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line)
 
 if (command == "PASS")
 {
+  std::cout << "ayoub here" << std::endl;
     std::string pass;
     iss >> pass;
 
@@ -271,6 +232,7 @@ if (command == "PASS")
     pass.erase(pass.size() - 1);
 
     if (pass != _password) {
+      std::cout << "passs send " << pass << " pass server " << _password << std::endl;
       std::string err = ":server 464 * :Password incorrect\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       _poller.removeFd(client->getFd());
@@ -317,9 +279,9 @@ if (command == "PASS")
     client->setRealname(realname);
     client->setHasUser(true);
   }
-  else if (command == "JOIN") {
+  else if (command == "JOIN")
+  {
     if (!client->isRegistered()) {
-      // FIXED: Proper IRC error format with CRLF
       std::string err = ":server 451 " + client->getNickname() + " JOIN :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
@@ -327,7 +289,8 @@ if (command == "PASS")
     std::string channelList;
     iss >> channelList;
 
-    if (channelList.empty()) {
+    if (channelList.empty())
+    {
       std::string err = ":server 461 " + client->getNickname() + " JOIN :Not enough parameters\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
@@ -335,14 +298,14 @@ if (command == "PASS")
 
     std::stringstream ss(channelList);
     std::string channelName;
-    while (std::getline(ss, channelName, ',')) {
+    while (std::getline(ss, channelName, ','))
+    {
       if (channelName.empty() || channelName[0] != '#') {
         std::string err = ":server 476 " + client->getNickname() + " " + channelName + " :Bad Channel Mask\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         continue;
       }
 
-      // Check if already in channel
       if (client->isInChannel(channelName)) {
         std::string err = ":server 443 " + client->getNickname() + " " + channelName + " :is already on channel\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
@@ -356,12 +319,17 @@ if (command == "PASS")
         channel->addOperator(client);
         
         _channels[channelName] = channel;
-      } else {
+
+        addBotToChannel(channelName);
+        std::cout << "Channel created: " << channelName << std::endl;
+      }
+      else
+      {
         channel = it->second;
       }
 
-      // Check if channel is invite-only
-      if (channel->isInviteOnly() && (!channel->isInvated(client))) {  // Fixed typo: isInvated -> isInvited
+      if (channel->isInviteOnly() && (!channel->isInvated(client))) 
+      {
         std::string err = ":server 473 " + client->getNickname() + " " + channelName + " :Cannot join channel (+i)\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         continue;
@@ -382,7 +350,7 @@ if (command == "PASS")
       client->joinChannel(channelName);
 
       // Send JOIN message to all channel members including the joiner
-      std::string joinMsg = ":" + client->getNickname() + " JOIN :" + channelName + "\r\n";
+      std::string joinMsg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost JOIN :" + channelName + "\r\n";
       channel->broadcast(joinMsg, NULL);
       
       // Send channel topic if it exists
@@ -400,11 +368,21 @@ if (command == "PASS")
       
       std::string endNames = ":server 366 " + client->getNickname() + " " + channelName + " :End of NAMES list\r\n";
       send(client->getFd(), endNames.c_str(), endNames.size(), 0);
-    }
-  }
+      // Send a waiting message for HexChat client
+      std::string waitMsg = ":server NOTICE " + client->getNickname() + " :Please wait while the channel is being prepared...\r\n";
+      send(client->getFd(), waitMsg.c_str(), waitMsg.size(), 0);
 
-  else if (command == "PRIVMSG") {
-    if (!client->isRegistered()) {
+      // Send the JOIN message to HexChat
+      std::string joinMsgg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost JOIN :" + channelName + "\r\n";
+      send(client->getFd(), joinMsgg.c_str(), joinMsg.size(), 0);
+        }
+      }
+
+      else if (command == "PRIVMSG")
+      {
+        std::cout << "saadd  here" << std::endl;
+
+        if (!client->isRegistered()) {
       std::string err = ":server 451 " + client->getNickname() + " :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
@@ -432,14 +410,17 @@ if (command == "PASS")
         handleCtcpMessage(client, target, ctcpData);
         return;
     }
-    if (target[0] == '#') {
+    if (target[0] == '#')
+    {
       std::map<std::string, Channel *>::iterator it = _channels.find(target);
-      if (it == _channels.end()) {
+      if (it == _channels.end())
+      {
         std::string err = ":server 403 " + client->getNickname() + " " + target +
                           " :No such channel\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         return;
       }
+      handleBot(client, target, message);
 
       Channel *channel = it->second;
 
@@ -744,10 +725,13 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target, co
   
 
 void LoopDeLoop::run() {
+
+  createBotClient();
   while (true) {
     std::vector<struct epoll_event> events = _poller.wait();
     for (size_t i = 0; i < events.size(); ++i) {
-      if (events[i].data.ptr == NULL) {
+      if (events[i].data.ptr == NULL)
+      {
         // New connection
         int clientFd = accept(_serverSocket.getFd(), NULL, NULL);
         if (clientFd < 0)
@@ -757,7 +741,9 @@ void LoopDeLoop::run() {
         _clients[clientFd] = client;
         _poller.addFd(clientFd, client);
         std::cout << "New client accepted: " << clientFd << std::endl;
-      } else {
+      }
+      else
+      {
         // Existing client
         Client *client = static_cast<Client *>(events[i].data.ptr);
         char buf[512];
@@ -768,16 +754,19 @@ void LoopDeLoop::run() {
           close(client->getFd());
           delete client;
           _clients.erase(client->getFd());
-        } else {
+        }
+        else
+        {
           buf[n] = '\0';
           client->getBuffer().append(buf);
           std::vector<std::string> lines = extractLines(client->getBuffer());
-          for (size_t j = 0; j < lines.size(); ++j) {
+          for (size_t j = 0; j < lines.size(); ++j)
+          {
             handleCommand(client, lines[i]);
           }
         }
       }
-    }
+  }
   }
 }
 

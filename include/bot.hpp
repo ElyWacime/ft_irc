@@ -68,14 +68,7 @@ public:
         dice[5] = "6";
     }
 
-    void createbotclient()
-    {
-        Client *botclient = new Client(fd);
-        botclient->setNickname("ChatBot");
-        botclient->setUsername("ChatBot");
-        botclient->setRealname("ChatBot");
-        botclient->setRegistered(true);
-    }
+
     std::string get_random_joke()
     {
         return joke[std::rand() % 2];

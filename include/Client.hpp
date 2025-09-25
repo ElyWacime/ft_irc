@@ -41,6 +41,7 @@ public:
   void setHasNick(bool val) { _hasNick = val; }
   void setHasUser(bool val) { _hasUser = val; }
   void setRegistered(bool val) { _isRegistered = val; }
+  void setHostname(const std::string &hostname) { _hostname = hostname; }
 
   const std::string &getPassword() const { return _password; }
   const std::string &getRealname() const { return _realname; }
