@@ -26,20 +26,18 @@ void trim(std::string &str) {
   }
 
   if (start < end && str[start] == ':') {
-    ++start; // Skip the ':'
+    ++start;
   }
 
   str = str.substr(start, end - start);
 }
-std::string LoopDeLoop::generateTransferKey(const std::string &from,
-                                            const std::string &to) {
+std::string LoopDeLoop::generateTransferKey(const std::string &from, const std::string &to) {
   return from + "->" + to;
 }
 
 std::string
-LoopDeLoop::generateServerFilename(const std::string &from,
-                                   const std::string &to,
-                                   const std::string &original_filename) {
+LoopDeLoop::generateServerFilename(const std::string &from, const std::string &to,
+  const std::string &original_filename) {
   return from + "to" + to + "_" + original_filename;
 }
 
@@ -95,7 +93,6 @@ void LoopDeLoop::createBotClient() {
   _badWords.push_back("idiot");
   _badWords.push_back("stupid");
   _badWords.push_back("hate");
-  std::cout << " bot client created: " << _botClient->getNickname()
             << std::endl;
 }
 
@@ -135,7 +132,6 @@ void LoopDeLoop::addBotToChannel(const std::string &channelName) {
     }
   }
 
-  std::cout << "🤖 Bot added to channel: " << channelName << std::endl;
 }
 
 bool LoopDeLoop::containsBadWords(const std::string &message) {
@@ -183,14 +179,8 @@ void LoopDeLoop::handleBot(Client *sender, const std::string &channelName,
                              channelName + " :" + quote + "\r\n";
       sendToNick(sender->getNickname(), quoteMsg);
       return;
-    } else if (command == "@ascii" && args.empty()) {
-      bot b;
-      std::string ascii = b.get_random_ascii();
-      std::string asciiMsg = ":" + _botClient->getNickname() + " PRIVMSG " +
-                             channelName + " :\r\n" + ascii + "\r\n";
-      sendToNick(sender->getNickname(), asciiMsg);
-      return;
-    } else if (command == "@coin" && args.empty()) {
+    }
+     else if (command == "@coin" && args.empty()) {
       bot b;
       std::string coin = b.get_random_coin();
       std::string coinMsg = ":" + _botClient->getNickname() + " PRIVMSG " +
@@ -221,19 +211,16 @@ void LoopDeLoop::handleBot(Client *sender, const std::string &channelName,
     const std::vector<Client *> &clients = channel->getClients();
     for (size_t i = 0; i < clients.size(); ++i) {
       Client *client = clients[i];
-      if (client->getFd() != -1) { // Only send to real clients
+      if (client->getFd() != -1) {
         send(client->getFd(), warningMsg.c_str(), warningMsg.size(), 0);
       }
     }
 
-    std::cout << "⚠️ Bot warned user " << sender->getNickname() << " in "
               << channelName << std::endl;
   }
 }
 
-///      sscscscs
 void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
-  std::cout << "check " << line << std::endl;
   std::istringstream iss(line);
 
   bot bot;
@@ -241,7 +228,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
   iss >> command;
 
   if (command == "PASS") {
-    std::cout << "ayoub here" << std::endl;
     std::string pass;
     iss >> pass;
 
@@ -251,8 +237,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       pass.erase(pass.size() - 1);
 
     if (pass != _password) {
-      std::cout << "passs send " << pass << " pass server " << _password
-                << std::endl;
+
       std::string err = ":server 464 * :Password incorrect\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       _poller.removeFd(client->getFd());
@@ -272,7 +257,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       nick.erase(nick.size() - 1);
 
     if (nickExist(nick)) {
-      // FIXED: Proper IRC error format with CRLF
       std::string err =
           ":server 433 * " + nick + " :Nickname is already in use\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -333,12 +317,12 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
           _channels.find(channelName);
       if (it == _channels.end()) {
         channel = new Channel(channelName);
-        channel->addOperator(client); // Make the creator an operator
+        channel->addOperator(client);
         _channels[channelName] = channel;
 
         addBotToChannel(channelName);
-        channel->addOperator(_botClient); // Add the bot as an operator
-        std::cout << "Channel created: " << channelName << std::endl;
+        channel->addOperator(_botClient);
+       
       } else {
         channel = it->second;
       }
@@ -350,7 +334,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         continue;
       }
 
-      // Check if channel has a key
       if (channel->hasKey()) {
         std::string key;
         iss >> key;
@@ -365,13 +348,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       channel->addClient(client);
       client->joinChannel(channelName);
 
-      // Send JOIN message to all channel members including the joiner
       std::string joinMsg = ":" + client->getNickname() + "!" +
                             client->getUsername() +
                             "@"+client->getHostname()+" JOIN :" + channelName + "\r\n";
       channel->broadcast(joinMsg, NULL);
 
-      // Send channel topic if it exists
       if (!channel->getTopic().empty()) {
         std::string topicMsg = ":server 332 " + client->getNickname() + " " +
                                channelName + " :" + channel->getTopic() +
@@ -383,13 +364,12 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         send(client->getFd(), noTopicMsg.c_str(), noTopicMsg.size(), 0);
       }
 
-      // Send NAMES list (list of users in channel)
       std::string namesList =
           ":server 353 " + client->getNickname() + " = " + channelName + " :";
       const std::vector<Client *> &members = channel->getClients();
       for (size_t i = 0; i < members.size(); ++i) {
         if (channel->isOperator(members[i])) {
-          namesList += "@"; // Indicate operator with '@'
+          namesList += "@"; 
         }
         namesList += members[i]->getNickname();
         if (i < members.size() - 1) {
@@ -403,12 +383,10 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
                              channelName + " :End of NAMES list\r\n";
       send(client->getFd(), endNames.c_str(), endNames.size(), 0);
 
-      // Send channel mode
       std::string modeMsg = ":server 324 " + client->getNickname() + " " +
                             channelName + " +t\r\n";
       send(client->getFd(), modeMsg.c_str(), modeMsg.size(), 0);
 
-      // Send WHO list
       for (size_t i = 0; i < members.size(); ++i) {
         std::string whoMsg =
             ":server 352 " + client->getNickname() + " " + channelName + " " +
@@ -492,7 +470,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
 
   else if (command == "KICK") {
     if (!client->isRegistered()) {
-      // FIXED: Proper IRC error format with nickname and CRLF
       std::string err = ":server 451 " + client->getNickname() +
                         " KICK :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -514,14 +491,12 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     Channel *channel = chIt->second;
 
     if (!channel->isOperator(client)) {
-      // FIXED: Proper IRC error format with server prefix and CRLF
       std::string err = ":server 482 " + client->getNickname() + " " +
                         channelName + " :You're not channel operator\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
     }
 
-    // Find target client
     Client *target = NULL;
     for (std::map<int, Client *>::iterator cit = _clients.begin();
          cit != _clients.end(); ++cit) {
@@ -540,7 +515,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     target->partChannel(channelName);
   } else if (command == "INVITE") {
     if (!client->isRegistered()) {
-      // FIXED: Proper IRC error format with nickname and CRLF
       std::string err = ":server 451 " + client->getNickname() +
                         " INVITE :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -557,7 +531,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     Channel *channel = chIt->second;
 
     if (!channel->isOperator(client)) {
-      // FIXED: Proper IRC error format with server prefix and CRLF
       std::string err = ":server 482 " + client->getNickname() + " " +
                         channelName + " :You're not channel operator\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -582,7 +555,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     send(target->getFd(), inviteMsg.c_str(), inviteMsg.size(), 0);
   } else if (command == "TOPIC") {
     if (!client->isRegistered()) {
-      // FIXED: Proper IRC error format with nickname and CRLF
       std::string err = ":server 451 " + client->getNickname() +
                         " TOPIC :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -604,19 +576,16 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       newTopic.erase(0, 1);
 
     if (newTopic.empty()) {
-      // Just show current topic - FIXED: Added server prefix and CRLF
       std::string topicMsg = ":server 332 " + client->getNickname() + " " +
                              channelName + " :" + channel->getTopic() + "\r\n";
       send(client->getFd(), topicMsg.c_str(), topicMsg.size(), 0);
     } else {
       if (channel->isTopicRestricted() && !channel->isOperator(client)) {
-        // FIXED: Proper IRC error format with server prefix and CRLF
         std::string err = ":server 482 " + client->getNickname() + " " +
                           channelName + " :You're not channel operator\r\n";
         send(client->getFd(), err.c_str(), err.size(), 0);
         return;
       }
-      std::cout << "###########" << !channel->isOperator(client) << std::endl;
       channel->setTopic(newTopic);
       std::string topicMsg = ":" + client->getNickname() + " TOPIC " +
                              channelName + " :" + newTopic + "\r\n";
@@ -624,7 +593,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     }
   } else if (command == "MODE") {
     if (!client->isRegistered()) {
-      // FIXED: Added missing registration check with proper error format
       std::string err = ":server 451 " + client->getNickname() +
                         " MODE :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -642,7 +610,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     Channel *channel = chIt->second;
 
     if (!channel->isOperator(client)) {
-      // FIXED: Proper IRC error format with server prefix and CRLF
       std::string err = ":server 482 " + client->getNickname() + " " +
                         channelName + " :You're not channel operator\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
@@ -690,7 +657,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         } else
           channel->setUserLimit(-1);
       } else if (m == 'o') {
-        // Give/take operator privilege
         Client *target = NULL;
         for (std::map<int, Client *>::iterator cit = _clients.begin();
              cit != _clients.end(); ++cit) {
@@ -706,7 +672,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
             channel->removeOperator(target);
         }
       } else {
-        // Unknown mode character - FIXED: Added server prefix and CRLF
         std::string err = ":server 472 " + client->getNickname() + " ";
         err += m;
         err += " :is unknown mode char to me\r\n";
@@ -714,16 +679,11 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       }
     }
   } else {
-    // FIXED: Added server prefix and CRLF for unknown command
-    // std::string response = ":server 421 " + client->getNickname() + " " +
-    // command + " :Unknown command\r\n"; send(client->getFd(),
-    // response.c_str(), response.size(), 0); Silently ignore unknown commands
-    // for now
+
   }
 
-  // FIXED: Moved registration validation to the end and improved logic
   if (!client->isRegistered() && client->hasNick() && client->hasUser()) {
-    // FIXED: Only check password if one is set
+
     if (!_password.empty() && client->getPassword() != _password) {
       std::string msg =
           ":server 464 " + client->getNickname() + " :Password incorrect\r\n";
@@ -736,7 +696,6 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
     }
 
     client->setRegistered(true);
-    // FIXED: Proper IRC welcome message format
     std::string welcome = ":server 001 " + client->getNickname() +
                           " :Welcome to the IRC server!\r\n";
     send(client->getFd(), welcome.c_str(), welcome.length(), 0);
@@ -753,7 +712,7 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target,
     std::string dccType;
     iss >> dccType;
 
-    std::cout << "test ayoub DCC Type: " << dccType << std::endl;
+
     if (dccType == "SEND") {
       std::string filename, host, port, filesize;
 
@@ -770,9 +729,6 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target,
 
       iss >> host >> port >> filesize;
 
-      std::cout << "Parsed: " << filename << " | " << host << " | " << port
-                << " | " << filesize << std::endl;
-
       Client *targetClient = findClientByNick(target);
       if (!targetClient) {
         std::string err = ":server 401 " + client->getNickname() + " " +
@@ -786,7 +742,6 @@ void LoopDeLoop::handleCtcpMessage(Client *client, const std::string &target,
           client->getHostname() + " PRIVMSG " + target + " :\001DCC SEND " +
           filename + " " + host + " " + port + " " + filesize + "\001\r\n";
 
-      std::cout << "ayoub test " << target << ": " << dccMsg << std::endl;
       send(targetClient->getFd(), dccMsg.c_str(), dccMsg.size(), 0);
 
       std::string confirmMsg = ":server NOTICE " + client->getNickname() +
@@ -814,19 +769,15 @@ void LoopDeLoop::run() {
         char ipStr[INET_ADDRSTRLEN]; // buffer for IPv4 (use INET6_ADDRSTRLEN
                                      // for IPv6)
         inet_ntop(AF_INET, &clientAddr.sin_addr, ipStr, sizeof(ipStr));
-        std::cout << "client IP : " << ipStr << std::endl;
-        // int clientFd = accept(_serverSocket.getFd(), NULL, NULL);
         if (clientFd < 0)
           continue;
         fcntl(clientFd, F_SETFL, O_NONBLOCK);
         Client *client = new Client(clientFd);
         _clients[clientFd] = client;
         _clients[clientFd]->setHostname(ipStr);
-        std::cout << _clients[clientFd]->getHostname() << std::endl;
         _poller.addFd(clientFd, client);
         std::cout << "New client accepted: " << clientFd << std::endl;
       } else {
-        // Existing client
         Client *client = static_cast<Client *>(events[i].data.ptr);
         char buf[512];
         int n = recv(client->getFd(), buf, sizeof(buf) - 1, 0);
@@ -849,4 +800,3 @@ void LoopDeLoop::run() {
   }
 }
 
-// https://claude.ai/share/0f690f6d-d7ce-4edd-b88a-74e9b00837e0
