@@ -368,7 +368,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       // Send JOIN message to all channel members including the joiner
       std::string joinMsg = ":" + client->getNickname() + "!" +
                             client->getUsername() +
-                            "@localhost JOIN :" + channelName + "\r\n";
+                            "@ + client->getHostname()JOIN :" + channelName + "\r\n";
       channel->broadcast(joinMsg, NULL);
 
       // Send channel topic if it exists
@@ -413,7 +413,8 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
         std::string whoMsg =
             ":server 352 " + client->getNickname() + " " + channelName + " " +
             members[i]->getNickname() + " " + members[i]->getUsername() +
-            " localhost localhost " + members[i]->getNickname() +
+            " " + members[i]->getHostname() + " " + members[i]->getHostname() +
+            " " + members[i]->getNickname() +
             " H@ :" + members[i]->getRealname() + "\r\n";
         send(client->getFd(), whoMsg.c_str(), whoMsg.size(), 0);
       }
@@ -471,7 +472,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       }
 
       std::string fullMsg = ":" + client->getNickname() + "!" +
-                            client->getUsername() + "@localhost" + " PRIVMSG " +
+                            client->getUsername() + "@"+ client->getHostname() + " PRIVMSG " +
                             target + " :" + message + "\r\n";
       channel->broadcast(fullMsg, client);
     } else {
@@ -484,7 +485,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       }
 
       std::string fullMsg = ":" + client->getNickname() + "!" +
-                            client->getUsername() + "@localhost" + " PRIVMSG " +
+                            client->getUsername() + "@"+ client->getHostname() + " PRIVMSG " +
                             target + " :" + message + "\r\n";
       send(targetClient->getFd(), fullMsg.c_str(), fullMsg.size(), 0);
     }
@@ -822,7 +823,7 @@ void LoopDeLoop::run() {
         Client *client = new Client(clientFd);
         _clients[clientFd] = client;
         _clients[clientFd]->setHostname(ipStr);
-        std::cout << _clients[clientFd]->getHostname << std::endl;
+        // std::cout << _clients[clientFd]->getHostname() << std::endl;
         _poller.addFd(clientFd, client);
         std::cout << "New client accepted: " << clientFd << std::endl;
       } else {
