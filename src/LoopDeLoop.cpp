@@ -92,7 +92,6 @@ void LoopDeLoop::createBotClient() {
   _badWords.push_back("idiot");
   _badWords.push_back("stupid");
   _badWords.push_back("hate");
-            << std::endl;
 }
 
 void LoopDeLoop::addBotToChannel(const std::string &channelName) {
@@ -215,7 +214,6 @@ void LoopDeLoop::handleBot(Client *sender, const std::string &channelName,
       }
     }
 
-              << channelName << std::endl;
   }
 }
 
