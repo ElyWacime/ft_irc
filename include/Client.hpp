@@ -34,6 +34,7 @@ public:
   const std::string &getUsername() const;
   void setUsername(const std::string &user);
   std::string &getBuffer();
+  void sethostname(const char *s) { _hostname = s; };
 
 
   void setPassword(const std::string &pass) { _password = pass; }

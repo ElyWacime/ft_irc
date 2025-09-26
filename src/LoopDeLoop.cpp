@@ -821,6 +821,8 @@ void LoopDeLoop::run() {
         fcntl(clientFd, F_SETFL, O_NONBLOCK);
         Client *client = new Client(clientFd);
         _clients[clientFd] = client;
+        _clients[clientFd]->setHostname(ipStr);
+        std::cout << _clients[clientFd]->getHostname << std::endl;
         _poller.addFd(clientFd, client);
         std::cout << "New client accepted: " << clientFd << std::endl;
       } else {
