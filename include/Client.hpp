@@ -19,7 +19,6 @@ private:
   std::string _hostname;
   std::set<std::string> _joinedChannels;
 
-  // ayoub
 
   std::string file_buffer;
 
@@ -62,14 +61,12 @@ public:
   void clearBuffer() { _buffer.clear(); };
 
 
-  // ayoub
 
   void sendMessage(const std::string &message)
   {
     send(getFd(), message.c_str(), message.size(), 0);
   }
     
-    // Add file transfer buffer
     std::string& getFileBuffer() { return file_buffer; }
     void setFileBuffer(const std::string &buf) { file_buffer = buf; }
 

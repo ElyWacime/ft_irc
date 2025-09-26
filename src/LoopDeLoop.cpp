@@ -77,7 +77,6 @@ std::vector<std::string> LoopDeLoop::extractLines(std::string &buffer) {
   }
   return lines;
 }
-////////                      test bootttt
 
 void LoopDeLoop::createBotClient() {
   _botClient = new Client(-1);
@@ -766,8 +765,8 @@ void LoopDeLoop::run() {
             accept(_serverSocket.getFd(),
                    reinterpret_cast<struct sockaddr *>(&clientAddr), &addrLen);
         getpeername(clientFd, (struct sockaddr *)&clientAddr, &addrLen);
-        char ipStr[INET_ADDRSTRLEN]; // buffer for IPv4 (use INET6_ADDRSTRLEN
-                                     // for IPv6)
+        char ipStr[INET_ADDRSTRLEN];
+                               
         inet_ntop(AF_INET, &clientAddr.sin_addr, ipStr, sizeof(ipStr));
         if (clientFd < 0)
           continue;

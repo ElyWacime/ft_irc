@@ -13,7 +13,6 @@
 #include <unistd.h>
 
 class Client;
-// class Channel;
 
 class LoopDeLoop {
 private:
@@ -34,11 +33,10 @@ private:
 
   std::vector<std::string> extractLines(std::string &buffer);
 
-  //ayoub
   
-  std::map<std::string, std::string> transfer_buffers_; // k -> file data
-  std::map<std::string, std::string> transfer_filenames_; // k -> original filename
-  std::map<std::string, bool> transfer_accepted_; // k -> acceptance status
+  std::map<std::string, std::string> transfer_buffers_; 
+  std::map<std::string, std::string> transfer_filenames_;
+  std::map<std::string, bool> transfer_accepted_; 
     
 
 public:
