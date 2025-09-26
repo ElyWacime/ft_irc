@@ -7,27 +7,25 @@
 #include <vector>
 class Channel {
 private:
-std::string _name;
-std::string _topic;
-std::string _key;
-int _userLimit;
-bool _inviteOnly;
-bool _topicRestricted;
-bool _hasKey;
-bool _has_bot;
+  std::string _name;
+  std::string _topic;
+  std::string _key;
+  int _userLimit;
+  bool _inviteOnly;
+  bool _topicRestricted;
+  bool _hasKey;
 
   std::set<Client *> _clients;
   std::set<Client *> _operators;
   std::set<Client *> _invited;
 
 public:
-  std::vector<Client*> getClients()
-  {
-      return std::vector<Client*>(_clients.begin(), _clients.end());
+  std::vector<Client *> getClients() {
+    return std::vector<Client *>(_clients.begin(), _clients.end());
   }
   Channel(const std::string &name)
       : _name(name), _userLimit(-1), _inviteOnly(0), _topicRestricted(0),
-        _hasKey(0), _has_bot(0) {}
+        _hasKey(0) {}
   const std::string &getName() const { return _name; }
   const std::string &getTopic() const { return _topic; }
   void setTopic(const std::string &topic) { _topic = topic; }
@@ -42,7 +40,7 @@ public:
     return _clients.find(client) != _clients.end();
   }
   const std::set<Client *> &getClients() const { return _clients; }
-  
+
   bool nickExist(const std::string &nick) const {
     for (std::set<Client *>::const_iterator nit = _clients.begin();
          nit != _clients.end(); nit++) {
