@@ -1,8 +1,10 @@
+#pragma once
+
 #include "Client.hpp"
 #include <set>
 #include <sys/socket.h>
 #include <sys/types.h>
-
+#include <vector>
 class Channel {
 private:
   std::string _name;
@@ -18,6 +20,9 @@ private:
   std::set<Client *> _invited;
 
 public:
+  std::vector<Client *> getClients() {
+    return std::vector<Client *>(_clients.begin(), _clients.end());
+  }
   Channel(const std::string &name)
       : _name(name), _userLimit(-1), _inviteOnly(0), _topicRestricted(0),
         _hasKey(0) {}
@@ -34,6 +39,8 @@ public:
   bool hasClient(Client *client) const {
     return _clients.find(client) != _clients.end();
   }
+  const std::set<Client *> &getClients() const { return _clients; }
+
   bool nickExist(const std::string &nick) const {
     for (std::set<Client *>::const_iterator nit = _clients.begin();
          nit != _clients.end(); nit++) {

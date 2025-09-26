@@ -6,8 +6,10 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <cerrno>
 
-SocketZilla::SocketZilla(int port) {
+SocketZilla::SocketZilla(int port)
+{
   _sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (_sockfd < 0)
     throw std::runtime_error("Socket creation failed");

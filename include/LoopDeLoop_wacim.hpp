@@ -16,15 +16,6 @@ class Client;
 
 class LoopDeLoop {
 private:
-
-  Client *_botClient;
-  bool _botEnabled;
-  std::vector<std::string> _badWords;
-  void createBotClient();
-  void addBotToChannel(const std::string& channelName);
-  bool containsBadWords(const std::string& message);
-  void handleBot(Client* sender, const std::string& channelName, const std::string& message);
-    
   SocketZilla _serverSocket;
   std::string _password;
   SockItToMe _poller;
@@ -34,13 +25,12 @@ private:
   std::vector<std::string> extractLines(std::string &buffer);
 
   
-  std::map<std::string, std::string> transfer_buffers_; 
-  std::map<std::string, std::string> transfer_filenames_;
-  std::map<std::string, bool> transfer_accepted_; 
+  std::map<std::string, std::string> transfer_buffers_; // k -> file data
+  std::map<std::string, std::string> transfer_filenames_; // k -> original filename
+  std::map<std::string, bool> transfer_accepted_; // k -> acceptance status
     
 
 public:
-
   LoopDeLoop(SocketZilla &_socket, std::string password,
              SockItToMe &epoll_instance);
   ~LoopDeLoop();
@@ -65,5 +55,4 @@ public:
   void handleFileTransferCommand(Client *client, const std::vector<std::string> &token);
   void  sendToNick(const std::string &nickname, const std::string  &message);
   Client* findClientByNick(const std::string &nickname);
-  void handleCtcpMessage(Client *client, const std::string &target, const std::string &ctcpData);
 };
