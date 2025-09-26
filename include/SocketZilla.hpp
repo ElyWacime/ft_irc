@@ -1,5 +1,5 @@
 #pragma once
-
+#include <cerrno>
 #include <netinet/in.h>
 #include <string>
 

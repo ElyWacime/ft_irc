@@ -13,6 +13,24 @@
 #include <unistd.h>
 
 
+void trim(std::string& str) {
+  size_t start = 0;
+  size_t end = str.length();
+
+  while (start < end && isspace(str[start])) {
+      ++start;
+  }
+
+  while (start < end && str[start] != ':') {
+      ++start;
+  }
+
+  if (start < end && str[start] == ':') {
+      ++start; // Skip the ':'
+  }
+
+  str = str.substr(start, end - start);
+}
 std::string LoopDeLoop::generateTransferKey(const std::string &from, const std::string &to) {
     return from + "->" + to;
 }
@@ -125,7 +143,6 @@ bool LoopDeLoop::containsBadWords(const std::string& message) {
 }
 void LoopDeLoop::handleBot(Client* sender, const std::string& channelName, const std::string& message) {
   if (!_botEnabled || !_botClient) return;
-    std::cout << message << std::endl;
 
   std::istringstream iss(message);
   std::string command, args;
@@ -316,11 +333,11 @@ if (command == "PASS")
       std::map<std::string, Channel *>::iterator it = _channels.find(channelName);
       if (it == _channels.end()) {
         channel = new Channel(channelName);
-        channel->addOperator(client);
-        
+        channel->addOperator(client); // Make the creator an operator
         _channels[channelName] = channel;
 
         addBotToChannel(channelName);
+        channel->addOperator(_botClient); // Add the bot as an operator
         std::cout << "Channel created: " << channelName << std::endl;
       }
       else
@@ -357,32 +374,47 @@ if (command == "PASS")
       if (!channel->getTopic().empty()) {
         std::string topicMsg = ":server 332 " + client->getNickname() + " " + channelName + " :" + channel->getTopic() + "\r\n";
         send(client->getFd(), topicMsg.c_str(), topicMsg.size(), 0);
+      } else {
+        std::string noTopicMsg = ":server 331 " + client->getNickname() + " " + channelName + " :No topic is set\r\n";
+        send(client->getFd(), noTopicMsg.c_str(), noTopicMsg.size(), 0);
       }
       
       // Send NAMES list (list of users in channel)
       std::string namesList = ":server 353 " + client->getNickname() + " = " + channelName + " :";
-      // Add logic to get channel members
-      // namesList += /* channel members */;
+      const std::vector<Client*>& members = channel->getClients();
+      for (size_t i = 0; i < members.size(); ++i) {
+        if (channel->isOperator(members[i])) {
+          namesList += "@"; // Indicate operator with '@'
+        }
+        namesList += members[i]->getNickname();
+        if (i < members.size() - 1) {
+          namesList += " ";
+        }
+      }
       namesList += "\r\n";
       send(client->getFd(), namesList.c_str(), namesList.size(), 0);
       
       std::string endNames = ":server 366 " + client->getNickname() + " " + channelName + " :End of NAMES list\r\n";
       send(client->getFd(), endNames.c_str(), endNames.size(), 0);
-      // Send a waiting message for HexChat client
-      std::string waitMsg = ":server NOTICE " + client->getNickname() + " :Please wait while the channel is being prepared...\r\n";
-      send(client->getFd(), waitMsg.c_str(), waitMsg.size(), 0);
 
-      // Send the JOIN message to HexChat
-      std::string joinMsgg = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost JOIN :" + channelName + "\r\n";
-      send(client->getFd(), joinMsgg.c_str(), joinMsg.size(), 0);
-        }
+      // Send channel mode
+      std::string modeMsg = ":server 324 " + client->getNickname() + " " + channelName + " +t\r\n";
+      send(client->getFd(), modeMsg.c_str(), modeMsg.size(), 0);
+
+      // Send WHO list
+      for (size_t i = 0; i < members.size(); ++i) {
+        std::string whoMsg = ":server 352 " + client->getNickname() + " " + channelName + " " +
+                             members[i]->getNickname() + " " + members[i]->getUsername() + " localhost localhost " +
+                             members[i]->getNickname() + " H@ :" + members[i]->getRealname() + "\r\n";
+        send(client->getFd(), whoMsg.c_str(), whoMsg.size(), 0);
       }
-
-      else if (command == "PRIVMSG")
-      {
-        std::cout << "saadd  here" << std::endl;
-
-        if (!client->isRegistered()) {
+      std::string endWho = ":server 315 " + client->getNickname() + " " + channelName + " :End of WHO list\r\n";
+      send(client->getFd(), endWho.c_str(), endWho.size(), 0);
+    }
+  }
+  else if (command == "PRIVMSG")
+  {
+    if (!client->isRegistered()) {
       std::string err = ":server 451 " + client->getNickname() + " :You have not registered\r\n";
       send(client->getFd(), err.c_str(), err.size(), 0);
       return;
@@ -393,6 +425,8 @@ if (command == "PASS")
 
     std::string message;
     std::getline(iss, message);
+    trim(message);
+    
     if (!message.empty() && message[0] == ':')
       message.erase(0, 1);
 
@@ -405,7 +439,6 @@ if (command == "PASS")
 
 
     if (!message.empty() && message.find("DCC ") != std::string::npos) {
-        std::cout << "ayoub1 here" << std::endl;
         std::string ctcpData = message.substr(1, message.length()-2);
         handleCtcpMessage(client, target, ctcpData);
         return;
@@ -616,7 +649,27 @@ if (command == "PASS")
           channel->setKey("");
       } else if (m == 'l') {
         if (adding)
-          channel->setUserLimit(std::atoi(param.c_str()));
+        {
+          try
+          {
+            int n = std::atoi(param.c_str());
+            if (n < (int)channel->getClients().size())
+            {
+                std::string errstring = "421 " + client->getNickname() + " :Invalid user limit\r\n";
+                send(client->getFd(), errstring.c_str(), errstring.size(), 0);
+                continue;
+            }
+            channel->setUserLimit(n);
+            std::string valstring = " Chanel Limit Changed Succesfully\r\n";
+            send(client->getFd(), valstring.c_str(), valstring.size(), 0);
+          }
+          catch(const std::exception& e)
+          {
+              std::string errstring = "401 " + client->getNickname() + ":Invalid Number\r\n";
+              send(client->getFd(), errstring.c_str(), errstring.size(), 0);
+              continue;
+          }
+        }
         else
           channel->setUserLimit(-1);
       } else if (m == 'o') {
