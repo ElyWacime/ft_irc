@@ -409,10 +409,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
 
     std::string message;
     std::getline(iss, message);
-    trim(message);
 
-    if (!message.empty() && message[0] == ':')
-      message.erase(0, 1);
 
     if (target.empty() || message.empty()) {
       std::string err = ":server 461 " + client->getNickname() +
@@ -446,7 +443,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       }
 
       std::string fullMsg = ":" + client->getNickname() + "!" +
-                            client->getUsername() + "@localhost" + " PRIVMSG " +
+                            client->getUsername() + "@"+ client->getHostname() + " PRIVMSG " +
                             target + " :" + message + "\r\n";
       channel->broadcast(fullMsg, client);
     } else {
@@ -459,7 +456,7 @@ void LoopDeLoop::handleCommand(Client *client, const std::string &line) {
       }
 
       std::string fullMsg = ":" + client->getNickname() + "!" +
-                            client->getUsername() + "@localhost" + " PRIVMSG " +
+                            client->getUsername() + "@"+ client->getHostname() + " PRIVMSG " +
                             target + " :" + message + "\r\n";
       send(targetClient->getFd(), fullMsg.c_str(), fullMsg.size(), 0);
     }
